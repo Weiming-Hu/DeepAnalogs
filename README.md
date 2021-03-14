@@ -1,4 +1,4 @@
-# Weather Analogs with a Machine Learning Similarity Metric -- Deep Analogs
+# Deep Analogs
 
 ```
 # "`-''-/").___..--''"`-._
@@ -14,7 +14,7 @@
 #         The Pennsylvania State University
 ```
 
-Training a deep network for weather analogs!
+Training a deep network for weather analogs! This method was developed to identify weather analogs with a Machine Learning similarity metric.
 
 The [Parallel Analog Ensemble](https://weiming-hu.github.io/AnalogsEnsemble/) is an implementation that uses the [original statistical metric](https://journals.ametsoc.org/view/journals/mwre/141/10/mwr-d-12-00281.1.xml) proposed by Dr. Delle Monache. However, the Deep Analogs seek to use a deep network for weather analog identification.
 
