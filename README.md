@@ -22,8 +22,16 @@ The [Parallel Analog Ensemble](https://weiming-hu.github.io/AnalogsEnsemble/) is
 
 This code has been used in the paper [Weather Analogs with a Machine Learning Similarity Metric for Renewable Resource Forecasting](https://arxiv.org/abs/2103.04530).
 
-## Install
+## Installation
 
 ```
 pip install git+git://github.com/Weiming-Hu/DeepAnalogs.git
 ```
+
+## Usage
+
+```
+deep_analogs_train -h
+```
+
+Currently, this package is still under active development. I'm happy to answer any questions or provide help.
