@@ -18,8 +18,8 @@ import netCDF4
 import numpy as np
 
 from netCDF4 import Dataset
-from utils import summary, binary_search
 from datetime import datetime, timedelta, timezone
+from DeepAnalogs.utils import summary, binary_search
 
 
 class AnEnDict(dict):

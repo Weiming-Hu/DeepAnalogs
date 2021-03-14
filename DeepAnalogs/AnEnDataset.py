@@ -20,8 +20,8 @@ import numpy as np
 import bottleneck as bn
 
 from tqdm import tqdm
-from AnEnDict import AnEnDict
 from torch.utils.data import Dataset
+from DeepAnalogs.AnEnDict import AnEnDict
 
 
 class AnEnDataset(Dataset):

@@ -8,6 +8,9 @@ setuptools.setup(
     description="Training a deep network for weather analogs",
     url="https://github.com/Weiming-Hu/DeepAnalogs",
     packages=setuptools.find_packages(),
+    entry_points={
+        "console_scripts": [
+            "deep_analogs_train = DeepAnalogs.train:main",]},
     python_requires=">=3",
     license='LICENSE',
     classifiers=[

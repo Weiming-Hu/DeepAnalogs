@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 # "`-''-/").___..--''"`-._
 #  (`6_ 6  )   `-.  (     ).`-.__.`)   WE ARE ...
 #  (_Y_.)'  ._   )  `._ `. ``-..-'    PENN STATE!
@@ -23,12 +26,12 @@ import numpy as np
 
 from tqdm import tqdm
 from pprint import pprint
-from AnEnDict import AnEnDict
-from Profiles import VerticalProfile
 from datetime import datetime, timezone
-from AnEnDataset import AnEnDatasetWithTimeWindow
-from utils import sort_distance_mc, summary_pytorch
-from Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
+from DeepAnalogs.AnEnDict import AnEnDict
+from DeepAnalogs.Profiles import VerticalProfile
+from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow
+from DeepAnalogs.utils import sort_distance_mc, summary_pytorch
+from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
 
 # Set seeds for reproducibility
 random.seed(42)
@@ -64,8 +67,7 @@ def restore(filename):
     print('**************************************************************')
 
 
-if __name__ == '__main__':
-
+def main():
     start_time = datetime.now()
 
     ###################
@@ -458,4 +460,8 @@ if __name__ == '__main__':
         print('Model training interrupted after {}'.format(end_time - start_time))
     else:
         print('Model training complete in {}'.format(end_time - start_time))
+
+
+if __name__ == '__main__':
+    main()
 
