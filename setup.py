@@ -1,8 +1,14 @@
+import os
 import setuptools
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(here, "DeepAnalogs", "version.py")) as fp:
+    exec(fp.read())
 
 setuptools.setup(
     name="DeepAnalogs",
-    version="0.0.0",
+    version=__version__,
     author="Weiming Hu",
     author_email="huweiming950714@gmail.com",
     description="Training a deep network for weather analogs",

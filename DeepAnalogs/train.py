@@ -27,6 +27,8 @@ import numpy as np
 from tqdm import tqdm
 from pprint import pprint
 from datetime import datetime, timezone
+
+from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
 from DeepAnalogs.Profiles import VerticalProfile
 from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow
@@ -73,7 +75,7 @@ def main():
     ###################
     # Parse arguments #
     ###################
-    parser = configargparse.ArgParser(description='Train an embedding network')
+    parser = configargparse.ArgParser(description='Train an embedding network v {}'.format(__version__))
 
     required_general = parser.add_argument_group('Required arguments for all trainings')
     required_general.add_argument('--out', help='Output folder', required=True)
@@ -200,6 +202,7 @@ def main():
     else:
         network_type = 'Conv_LSTM'
 
+    print('Train deep network for Deep Analogs v {}'.format(__version__))
     print('Argument preview:')
     print(parser.format_values())
 
