@@ -34,4 +34,4 @@ pip install git+git://github.com/Weiming-Hu/DeepAnalogs.git
 deep_analogs_train -h
 ```
 
-Currently, this package is still under active development. I'm happy to answer any questions or provide help.
+Currently, this package is still under active development. So please use it at your own discretion. But I'm also happy to answer any questions or provide help.
