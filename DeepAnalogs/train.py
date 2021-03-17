@@ -351,7 +351,7 @@ def main():
 
     else:
         # If an intermediate file has been found
-        num_forecast_variables, scaler, profile, preprocessor, train_loader, test_loader = restore(args.intermediate_file)
+        num_forecast_variables, scaler, profile, preprocessor, train_loader, test_loader = restore(args.intermediate_file).values()
 
     if network_type == 'LSTM':
         embedding_net = EmbeddingLSTM(
