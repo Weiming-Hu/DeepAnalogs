@@ -46,6 +46,8 @@ torch.backends.cudnn.deterministic = True
 
 # Global functions
 def backup(filename, d):
+    assert isinstance(d, dict), 'Only supports backing up a dictionary!'
+    
     print('\n**************************************************************')
     print('Saving an intermediate file {}'.format(filename))
 
@@ -63,10 +65,13 @@ def restore(filename):
 
     with open(filename, "rb") as f:
         d = pickle.load(f)
-    globals().update(d)
+        
+    assert isinstance(d, dict), 'Only supports restoring a dictionary!'
 
     print('The following objects have been updated: {}'.format(', '.join(d.keys())))
     print('**************************************************************')
+    
+    return d
 
 
 def main():
@@ -346,7 +351,7 @@ def main():
 
     else:
         # If an intermediate file has been found
-        restore(args.intermediate_file)
+        num_forecast_variables, scaler, profile, preprocessor, train_loader, test_loader = restore(args.intermediate_file)
 
     if network_type == 'LSTM':
         embedding_net = EmbeddingLSTM(
