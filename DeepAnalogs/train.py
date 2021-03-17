@@ -153,8 +153,10 @@ def main():
                           help='Triplet loss margin for training')
     optional.add_argument('--dataset-margin', required=False, dest='dataset_margin', default=np.nan, type=float,
                           help='The margin used while creating the triplet dataset')
-    optional.add_argument('--stations-index', required=False, dest='stations_index', default=None, nargs='*', type=int,
-                          help='The station indices to subset after reading observations and forecasts')
+    optional.add_argument('--obs-stations-index', required=False, dest='obs_stations_index', default=None, nargs='*', type=int,
+                          help='The station indices to subset after reading observations')
+    optional.add_argument('--fcst-stations-index', required=False, dest='fcst_stations_index', default=None, nargs='*', type=int,
+                          help='The station indices to subset after reading forecasts')
     optional.add_argument('--cpu-cores', required=False, dest='cpu_cores', default=1, type=int,
                           help='The number of CPU to use during data preprocessig')
     optional.add_argument('--intermediate-file', required=False, dest='intermediate_file', default='',
@@ -215,10 +217,10 @@ def main():
         # Read NetCDF files
         print('Reading observations and forecasts ...')
 
-        observations = AnEnDict(args.observation, 'Observations', stations_index=args.stations_index)
+        observations = AnEnDict(args.observation, 'Observations', stations_index=args.obs_stations_index)
         print(observations)
 
-        forecasts = AnEnDict(args.forecast, 'Forecasts', stations_index=args.stations_index)
+        forecasts = AnEnDict(args.forecast, 'Forecasts', stations_index=args.fcst_stations_index)
 
         if args.fcst_variables is not None:
             forecasts.subset_variables(args.fcst_variables)
