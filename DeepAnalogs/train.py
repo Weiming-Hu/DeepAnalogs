@@ -190,9 +190,9 @@ def main():
 
     # Import a scaling method
     if args.scaler_type == 'MinMaxScaler':
-        from Scalers import MinMaxScaler as ScalerClass
+        from DeepAnalogs.Scalers import MinMaxScaler as ScalerClass
     elif args.scaler_type == 'StandardScaler':
-        from Scalers import StandardScaler as ScalerClass
+        from DeepAnalogs.Scalers import StandardScaler as ScalerClass
     else:
         raise Exception('The input scaler type {} is not supported!'.format(args.scaler_type))
 
