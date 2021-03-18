@@ -335,9 +335,8 @@ def main():
         ##################
 
         num_forecast_variables = dataset.forecasts['Data'].shape[0]
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch, num_workers=args.load_workers)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch,
-                                                  num_workers=args.test_load_workers)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch, num_workers=args.load_workers, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch, num_workers=args.test_load_workers)
 
         if args.intermediate_file:
             backup(args.intermediate_file, {
