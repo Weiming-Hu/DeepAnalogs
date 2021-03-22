@@ -158,9 +158,9 @@ class AnEnDataset(Dataset):
                     # Update the progress bar
                     pbar.update(1)
 
-    def save_samples(filename):
+    def save_samples(self, filename):
         with open(filename, 'wb') as f:
-            pickle.dump(self.samples, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.samples, f)
 
     def _select_sequential(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         """
