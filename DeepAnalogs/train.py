@@ -174,6 +174,7 @@ def main():
                           help='For Adam and its variants, use amsgrad')
     optional.add_argument('--trans-args', dest='trans_args', required=False, default=None, type=json.loads,
                           help='A distionary for transformation [fitness selection]')
+    required_general.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
 
     # Parse arguments
     args = parser.parse_args()
@@ -401,9 +402,11 @@ def main():
     loss_func = torch.nn.TripletMarginLoss(margin=args.train_margin)
     
     if args.optimizer == 'Adam':
-        optimizer = torch.optim.Adam(embedding_net.parameters(), lr=args.lr, amsgrad=args.amsgrad)
+        optimizer = torch.optim.Adam(embedding_net.parameters(), lr=args.lr,
+                                     amsgrad=args.amsgrad, weight_decay=args.wdecay)
     elif args.optimizer == 'AdamW':
-        optimizer = torch.optim.AdamW(embedding_net.parameters(), lr=args.lr, amsgrad=args.amsgrad)
+        optimizer = torch.optim.AdamW(embedding_net.parameters(), lr=args.lr,
+                                      amsgrad=args.amsgrad, weight_decay=args.wdecay)
     elif args.optimizer == 'RMSprop':
         optimizer = torch.optim.RMSprop(embedding_net.parameters(), lr=args.lr)
     else:
