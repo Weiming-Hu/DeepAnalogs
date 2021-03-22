@@ -13,6 +13,7 @@
 #
 
 import torch
+import pickle
 import random
 import itertools
 
@@ -43,7 +44,7 @@ class AnEnDataset(Dataset):
                  margin=np.nan, positive_predictand_index=None,
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-                 fitness_num_negative=1, add_lead_time_index=False):
+                 fitness_num_negative=1, add_lead_time_index=False, trans_args=None):
         """
         Initialize an AnEnDataset
 
@@ -64,11 +65,13 @@ class AnEnDataset(Dataset):
         negative candidates to select for each positive candidate. The selection will be sampling without replacement
         to ensure that a particular negative candidate is only selected once for a particular positive candidate.
         :param add_lead_time_index: Whether to add lead time index in the results of __get_item__
+        :param trans_args Arguments as a dictionary for the transformation in fitness selection
         """
 
         # Sanity checks
         assert isinstance(forecasts, AnEnDict), 'Forecasts must be an object of AnEnDict!'
         assert isinstance(sorted_members, dict), 'Sorted members must be an object of dictionary!'
+
         expected_dict_keys = ['index', 'distance', 'anchor_times_index', 'search_times_index']
         assert all([key in sorted_members.keys() for key in expected_dict_keys]), \
             '{} are required in sorted members'.format(sorted_members)
@@ -108,6 +111,22 @@ class AnEnDataset(Dataset):
         self.positive_sample_times = []
         self.negative_sample_times = []
 
+        # Decide the transformation function
+        self.trans_args = trans_args
+
+        if self.trans_args is None:
+            self.trans_func = None
+        else:
+            assert isinstance(trans_args, dict), 'Transformation arguments must be a dictionary! Got {}'.format(type(trans_args))
+
+            if self.trans_args['method'] == 'exponential':
+                for k in ['a', 'b', 'c']:
+                    self.trans_args[k] = float(self.trans_args[k])
+
+                self.trans_func = AnEnDataset._transform_exponential
+            else:
+                raise Exception('No supported type: {}'.format(self.trans_args['method']))
+
         # Create index samples
         #
         # Each sample is a length-of-5 list containing the following information:
@@ -138,6 +157,10 @@ class AnEnDataset(Dataset):
 
                     # Update the progress bar
                     pbar.update(1)
+
+    def save_samples(filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.samples, f, pickle.HIGHEST_PROTOCOL)
 
     def _select_sequential(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         """
@@ -180,6 +203,12 @@ class AnEnDataset(Dataset):
         # Inverse distances
         distance_inverse = bn.nansum(distance) - distance
 
+        # Replace NAN with 0
+        distance_inverse[np.isnan(distance_inverse)] = 0
+
+        if self.trans_func is not None:
+            distance_inverse = self.trans_func(distance_inverse, **self.trans_args)
+
         for analog_index in range(self.num_analogs):
             positive_candidate_index = analog_index
 
@@ -191,9 +220,9 @@ class AnEnDataset(Dataset):
                 fitness_cumsum = np.cumsum(fitness)
 
                 # Decide on the negative candidate
-                negative_candidate_index = bn.nanargmin(np.abs(random.random() - fitness_cumsum))
+                negative_candidate_index = np.digitize(random.random(), fitness_cumsum)
 
-                # Remove this negative candidate for future selection
+                # Remove this negative candidate from future selection
                 fitness[negative_candidate_index] = 0
 
                 # Rescale the fitness to [0, 1]
@@ -332,6 +361,22 @@ class AnEnDataset(Dataset):
             ret.append(lead_time_index)
 
         return ret
+
+    @staticmethod
+    def _transform_exponential(y, a, b, c, method):
+        """
+        Multiply the input `y` with a exponential distribution transformation. The exponential distribution function
+        is as follows:
+            y_multiplier = a * np.exp(-b * x), where x is the rank of y normalized to `[0, c]`.
+        """
+        # An example:
+        # a = 0.05, b = 0.02, c = 100
+
+        x = np.arange(0, len(y), 1)
+        x = x / bn.nanmax(x) * c
+
+        multiplier = a * np.exp(-b * x)
+        return y * multiplier
 
 
 class AnEnDatasetWithTimeWindow(AnEnDataset):

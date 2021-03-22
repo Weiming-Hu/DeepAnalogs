@@ -17,6 +17,7 @@
 
 import os
 import time
+import json
 import torch
 import pickle
 import random
@@ -171,7 +172,9 @@ def main():
     optional.add_argument('--optimizer', required=False, default='Adam', help='The optimizer to user from PyTorch')
     optional.add_argument('--use-amsgrad', required=False, action='store_true', dest='amsgrad',
                           help='For Adam and its variants, use amsgrad')
-    
+    optional.add_argument('--trans-args', dest='trans_args', required=False, default=None, type=json.loads,
+                          help='A distionary for transformation [fitness selection]')
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -281,9 +284,15 @@ def main():
             num_analogs=args.analogs, margin=args.dataset_margin, positive_predictand_index=args.positive_index,
             triplet_sample_prob=args.triplet_sample_prob, triplet_sample_method=args.triplet_sample_method,
             forecast_data_key='DataNorm', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-            fitness_num_negative=args.fitness_num_negative)
+            fitness_num_negative=args.fitness_num_negative, trans_args=args.trans_args)
 
         print(dataset)
+
+        # Save samples
+        sample_file = '{}/samples.pkl'.format(args.out)
+        print('\nSaving samples to {} ...'.format(sample_file))
+        dataset.save_samples(sample_file)
+        print('Samples have been saved to {}!\n'.format(sample_file))
 
         # These variables have been pointed internally.
         # To ensure no unexpected changes to these, I remove the outer pointers from the global environment
