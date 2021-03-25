@@ -1,3 +1,7 @@
+# DeepAnalogs 0.0.3
+
+- Added `AnEnOneToMany` dataset class
+
 # DeepAnalogs 0.0.0
 
 - Initialized the project
