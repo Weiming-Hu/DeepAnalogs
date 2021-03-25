@@ -1,6 +1,7 @@
-# DeepAnalogs 0.0.3
+# DeepAnalogs 0.1.2
 
 - Added `AnEnOneToMany` dataset class
+- Changed version to major.minor.patch. Major and minor changes will be documented, but not patch updates.
 
 # DeepAnalogs 0.0.0
 
