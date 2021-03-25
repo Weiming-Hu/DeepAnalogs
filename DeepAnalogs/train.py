@@ -177,7 +177,7 @@ def main():
     optional.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
     optional.add_argument('--dataset-class', required=False, default='AnEnDatasetWithTimeWindow', dest='dataset_class',
                           help='Which dataset class to use. Currently supports AnEnOneToMany and AnEnDatasetWithTimeWindow')
-    optional.add_argument('--matching-forecast-station', required=False, default=-1, dest='matching_forecast_station',
+    optional.add_argument('--matching-forecast-station', required=False, default=-1, type=int, dest='matching_forecast_station',
                           help='The index of the forecast station to match the observation station [AnEnOneToMany]')
 
 
