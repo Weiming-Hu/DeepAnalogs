@@ -276,7 +276,7 @@ class AnEnDataset(Dataset):
 
         # Construct a triplet
         triplet = [station_index, lead_time_index, anchor_time_index, i_p, i_n]
-
+        
         self.samples.append(triplet)
         current_lead_time = self.forecasts['FLTs'][lead_time_index]
         self.positive_sample_times.append(self.forecasts['Times'][i_p] + current_lead_time)
@@ -288,10 +288,6 @@ class AnEnDataset(Dataset):
         Generates a list of messages as a summary for the dataset.
         :return: A list of messages
         """
-
-        assert len(self.samples) == len(self.positive_sample_times) == \
-               len(self.negative_sample_times) == len(self.anchor_sample_times), \
-            'Assertion failed during the summary: sample length mismatch (samples and sample times)!'
 
         msg = [
             '*************** A Customized Dataset for AnEn ***************',
