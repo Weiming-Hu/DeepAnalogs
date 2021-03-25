@@ -105,6 +105,8 @@ class AnEnDataset(Dataset):
         self.to_tensor = to_tensor
         self.fitness_num_negative = fitness_num_negative
         self.add_lead_time_index = add_lead_time_index
+        self.tqdm = tqdm
+        self.disable_pbar = disable_pbar
 
         self.samples = []
         self.anchor_sample_times = []
@@ -138,7 +140,7 @@ class AnEnDataset(Dataset):
         #
         print('Generating triplet samples ...')
 
-        with tqdm(total=num_stations * num_lead_times, disable=disable_pbar, leave=True) as pbar:
+        with self.tqdm(total=num_stations * num_lead_times, disable=self.disable_pbar, leave=True) as pbar:
             for station_index in range(num_stations):
                 for lead_time_index in range(num_lead_times):
 
@@ -391,7 +393,7 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         Initialize an AnEnDatasetWithTimeWindow class
         :param lead_time_radius: The radius of lead times to include. The lead time window at lead time t will be
         [t - lead_time_radius, t + lead_time_radius].
-        :param kw: Additional arguments to `AnEnDatasetWithTimeWindow`
+        :param kw: Additional arguments to `AnEnDataset`
         """
         super().__init__(**kw)
 
@@ -428,6 +430,99 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         anchor = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[2], flt_left:flt_right]
         positive = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[3], flt_left:flt_right]
         negative = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[4], flt_left:flt_right]
+
+        # Fix dimensions
+        anchor = np.expand_dims(anchor, 1)
+        positive = np.expand_dims(positive, 1)
+        negative = np.expand_dims(negative, 1)
+
+        if self.to_tensor:
+            anchor = torch.tensor(anchor, dtype=torch.float)
+            positive = torch.tensor(positive, dtype=torch.float)
+            negative = torch.tensor(negative, dtype=torch.float)
+
+        ret = [anchor, positive, negative]
+
+        if self.add_lead_time_index:
+            lead_time_index = triplet[1]
+
+            if self.to_tensor:
+                lead_time_index = torch.tensor(lead_time_index, dtype=torch.long)
+
+            ret.append(lead_time_index)
+
+        return ret
+
+
+class AnEnOneToMany(AnEnDatasetWithTimeWindow):
+    """
+    AnEnOneToMany is inherited from AnEnDatasetWithTimeWindow. It is mostly the same as AnEnDatasetWithTimeWindow
+    except that AnEnOneToMany only accepts one stations in the observation dataset and multiple stations in the
+    forecast dataset. Users need to specify which forecast stations is the matching station to the observation
+    stations. However, when creating triplets, forecasts from all stations will be used to be compared to the forecasts
+    at the matching station.
+    """
+
+    def __init__(self, matching_forecast_station, **kw):
+        """
+        Initialize an AnEnOneToMany class
+        :param matching_forecast_station: The index of the forecast station is matches the observation station.
+        :param kw: Additional arguments to `AnEnDatasetWithTimeWindow`
+        """
+
+        # Sanity check
+        err_msg = 'Invalid matching station index (). The total number of forecast stations is {}'.format(
+            matching_forecast_station, kw['forecasts'][kw['forecast_data_key']].shape[1])
+
+        assert kw['forecasts'][kw['forecast_data_key']].shape[1] > matching_forecast_station, err_msg
+        assert kw['sorted_members']['index'].shape[0] == 1, 'This class only supports having one observation station!'
+
+        super().__init__(**kw)
+
+        self.matching_forecast_station = matching_forecast_station
+
+        # This is where AnEnOneToMany starts to differ from the base classes. Triplets will be duplicated with changing
+        # the station indices. Because not only the matching station is going to be similar, all stations from forecasts
+        # should be considered similar to the matching station.
+        #
+
+        assert len(np.unique([sample[0]] for sample in self.samples)) == 1, 'Fatal! There should be only 1 station!'
+
+        # Create new samples with changing the station index
+        print('Enumerating station indices with samples ...')
+        new_samples = []
+        num_stations = self.forecasts[self.forecast_data_key].shape[1]
+
+        for sample in self.tqdm(self.samples, disable=self.disable_pbar, leave=True):
+            for station_index in range(num_stations):
+                sample[0] = station_index
+                new_samples.append(sample.copy())
+
+        del self.samples
+        self.samples = new_samples
+
+    def __str__(self):
+        msg = [
+            super().__str__(),
+            'Matching forecast station index: {}'.format(self.matching_forecast_station),
+            'Number of forecast stations: {}'.format(self.forecasts[self.forecast_data_key].shape[1]),
+        ]
+        return '\n'.join(msg)
+
+    def __getitem__(self, index):
+        assert isinstance(index, int), "Only support indexing using a single integer!"
+
+        # Extract the triplet sample
+        triplet = self.samples[index]
+
+        # Determine the start and the end indices for the lead time window
+        flt_left = triplet[1] - self.lead_time_radius
+        flt_right = triplet[1] + self.lead_time_radius + 1
+
+        # Get forecast values at a single station and from a lead time window
+        anchor = self.forecasts[self.forecast_data_key][:, self.matching_forecast_station, triplet[2], flt_left:flt_right]
+        positive = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[3], flt_left:flt_right]
+        negative = self.forecasts[self.forecast_data_key][:, self.matching_forecast_station, triplet[4], flt_left:flt_right]
 
         # Fix dimensions
         anchor = np.expand_dims(anchor, 1)
