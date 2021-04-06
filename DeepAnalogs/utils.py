@@ -73,8 +73,8 @@ def binary_search(seq, v):
         return -1
 
 
-def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0, forecast_times=None,
-                  disable_pbar=False, tqdm=tqdm, return_values=False, verbose=True):
+def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0,
+                  forecast_times=None, disable_pbar=False, tqdm=tqdm, return_values=False, verbose=True):
     """
     Calculates the dissimilarity (distance) between each of the anchor times and the remaining times at each location.
     This function is capable of finding multi-variate distances by setting the parameter weights. The sorted indices
@@ -211,7 +211,8 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
                         distances[search_time_index] = bn.nanmean(np.abs(difference) * parameter_weights)
                         
                         if julian_weight > 0:
-                            distances[search_time_index] += julian_weight * np.abs(anchor_julians[anchor_time_index] - search_julians[search_time_index])
+                            distances[search_time_index] += julian_weight * np.abs(anchor_julians[anchor_time_index] -
+                                                                                   search_julians[search_time_index])
 
                 # Sort
                 distance_order = np.argsort(distances)
@@ -230,8 +231,8 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
     return sorted_members
 
 
-def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0, forecast_times=None,
-                     disable_pbar=False, return_values=False, max_workers=1):
+def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0,
+                     forecast_times=None, disable_pbar=False, return_values=False, max_workers=1):
     """
     This is simply a wrapper function for sort_distance using parallel processing.
     :param anchor_times: See sort_distance
