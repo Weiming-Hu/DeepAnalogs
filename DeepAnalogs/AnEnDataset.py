@@ -450,10 +450,10 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         return ret
 
 
-class AnEnOneToMany(AnEnDatasetWithTimeWindow):
+class AnEnDatasetOneToMany(AnEnDatasetWithTimeWindow):
     """
-    AnEnOneToMany is inherited from AnEnDatasetWithTimeWindow. It is mostly the same as AnEnDatasetWithTimeWindow
-    except that AnEnOneToMany only accepts one stations in the observation dataset and multiple stations in the
+    AnEnDatasetOneToMany is inherited from AnEnDatasetWithTimeWindow. It is mostly the same as AnEnDatasetWithTimeWindow
+    except that AnEnDatasetOneToMany only accepts one stations in the observation dataset and multiple stations in the
     forecast dataset. Users need to specify which forecast stations is the matching station to the observation
     stations. However, when creating triplets, forecasts from all stations will be used to be compared to the forecasts
     at the matching station.
@@ -461,7 +461,7 @@ class AnEnOneToMany(AnEnDatasetWithTimeWindow):
 
     def __init__(self, matching_forecast_station, **kw):
         """
-        Initialize an AnEnOneToMany class
+        Initialize an AnEnDatasetOneToMany class
         :param matching_forecast_station: The index of the forecast station is matches the observation station.
         :param kw: Additional arguments to `AnEnDatasetWithTimeWindow`
         """
@@ -477,7 +477,7 @@ class AnEnOneToMany(AnEnDatasetWithTimeWindow):
 
         self.matching_forecast_station = matching_forecast_station
 
-        # This is where AnEnOneToMany starts to differ from the base classes. Triplets will be duplicated with changing
+        # This is where AnEnDatasetOneToMany starts to differ from the base classes. Triplets will be duplicated with changing
         # the station indices. Because not only the matching station is going to be similar, all stations from forecasts
         # should be considered similar to the matching station.
         #

@@ -1,3 +1,7 @@
+# DeepAnalogs 0.2.0
+
+- Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
+
 # DeepAnalogs 0.1.3
 
 - Added `AnEnOneToMany` dataset class

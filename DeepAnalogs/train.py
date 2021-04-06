@@ -34,7 +34,7 @@ from DeepAnalogs.AnEnDict import AnEnDict
 from DeepAnalogs.Profiles import VerticalProfile
 from DeepAnalogs.utils import sort_distance_mc, summary_pytorch
 from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
-from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnOneToMany
+from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnDatasetOneToMany
 
 # Set seeds for reproducibility
 random.seed(42)
@@ -176,9 +176,9 @@ def main():
                           help='A distionary for transformation [fitness selection]')
     optional.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
     optional.add_argument('--dataset-class', required=False, default='AnEnDatasetWithTimeWindow', dest='dataset_class',
-                          help='Which dataset class to use. Currently supports AnEnOneToMany and AnEnDatasetWithTimeWindow')
+                          help='Which dataset class to use. Currently supports AnEnDatasetOneToMany and AnEnDatasetWithTimeWindow')
     optional.add_argument('--matching-forecast-station', required=False, default=-1, type=int, dest='matching_forecast_station',
-                          help='The index of the forecast station to match the observation station [AnEnOneToMany]')
+                          help='The index of the forecast station to match the observation station [AnEnDatasetOneToMany]')
 
 
     # Parse arguments
@@ -305,10 +305,10 @@ def main():
         if args.dataset_class == 'AnEnDatasetWithTimeWindow':
             dataset = AnEnDatasetWithTimeWindow(**dataset_kwargs)
 
-        elif args.dataset_class == 'AnEnOneToMany':
-            assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnOneToMany!'
+        elif args.dataset_class == 'AnEnDatasetOneToMany':
+            assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnDatasetOneToMany!'
             dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
-            dataset = AnEnOneToMany(**dataset_kwargs)
+            dataset = AnEnDatasetOneToMany(**dataset_kwargs)
 
         print(dataset)
 
