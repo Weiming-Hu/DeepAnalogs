@@ -1,6 +1,8 @@
 # DeepAnalogs 0.2.0
 
+- Added `AnEnDatasetSpatial`
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
+- Added training with Convolutional LSTM embeddings
 
 # DeepAnalogs 0.1.3
 
