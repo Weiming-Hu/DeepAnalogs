@@ -32,9 +32,9 @@ from datetime import datetime, timezone
 from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
 from DeepAnalogs.Profiles import VerticalProfile
-from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow
 from DeepAnalogs.utils import sort_distance_mc, summary_pytorch
 from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
+from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnOneToMany
 
 # Set seeds for reproducibility
 random.seed(42)
@@ -174,7 +174,12 @@ def main():
                           help='For Adam and its variants, use amsgrad')
     optional.add_argument('--trans-args', dest='trans_args', required=False, default=None, type=json.loads,
                           help='A distionary for transformation [fitness selection]')
-    required_general.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
+    optional.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
+    optional.add_argument('--dataset-class', required=False, default='AnEnDatasetWithTimeWindow', dest='dataset_class',
+                          help='Which dataset class to use. Currently supports AnEnOneToMany and AnEnDatasetWithTimeWindow')
+    optional.add_argument('--matching-forecast-station', required=False, default=-1, type=int, dest='matching_forecast_station',
+                          help='The index of the forecast station to match the observation station [AnEnOneToMany]')
+
 
     # Parse arguments
     args = parser.parse_args()
@@ -280,12 +285,30 @@ def main():
         forecasts['DataNorm'] = scaler.transform(original_data).numpy()
 
         # Create a dataset for training
-        dataset = AnEnDatasetWithTimeWindow(
-            lead_time_radius=args.lstm_radius, forecasts=forecasts, sorted_members=sorted_members,
-            num_analogs=args.analogs, margin=args.dataset_margin, positive_predictand_index=args.positive_index,
-            triplet_sample_prob=args.triplet_sample_prob, triplet_sample_method=args.triplet_sample_method,
-            forecast_data_key='DataNorm', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-            fitness_num_negative=args.fitness_num_negative, trans_args=args.trans_args)
+        dataset_kwargs = {
+            'lead_time_radius': args.lstm_radius,
+            'forecasts': forecasts,
+            'sorted_members': sorted_members,
+            'num_analogs': args.analogs,
+            'margin': args.dataset_margin,
+            'positive_predictand_index': args.positive_index,
+            'triplet_sample_prob': args.triplet_sample_prob,
+            'triplet_sample_method': args.triplet_sample_method,
+            'forecast_data_key': 'DataNorm',
+            'to_tensor': True,
+            'disable_pbar': False,
+            'tqdm': tqdm,
+            'fitness_num_negative': args.fitness_num_negative,
+            'trans_args': args.trans_args,
+        }
+
+        if args.dataset_class == 'AnEnDatasetWithTimeWindow':
+            dataset = AnEnDatasetWithTimeWindow(**dataset_kwargs)
+
+        elif args.dataset_class == 'AnEnOneToMany':
+            assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnOneToMany!'
+            dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
+            dataset = AnEnOneToMany(**dataset_kwargs)
 
         print(dataset)
 
