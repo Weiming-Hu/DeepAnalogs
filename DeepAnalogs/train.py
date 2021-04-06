@@ -31,10 +31,9 @@ from datetime import datetime, timezone
 
 from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
-from DeepAnalogs.Profiles import VerticalProfile
 from DeepAnalogs.utils import sort_distance_mc, summary_pytorch
 from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
-from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnDatasetOneToMany
+from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnDatasetOneToMany, AnEnDatasetSpatial
 
 # Set seeds for reproducibility
 random.seed(42)
@@ -44,6 +43,7 @@ torch.cuda.manual_seed(42)
 torch.cuda.manual_seed_all(42)
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
+
 
 # Global functions
 def backup(filename, d):
@@ -109,28 +109,16 @@ def main():
     required_lstm.add_argument('--lstm-layers', help='The number of layers',
                                required=True, type=int, dest='lstm_layers')
 
-    optional_conv = parser.add_argument_group(
-        'Optional arguments for adding convolution layers before LSTM.\n' +
-        'Each convolution layer is always followed by a max pooling layer.\n' +
-        '1D convolution: https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html#conv1d\n' +
-        '1D max pooling: https://pytorch.org/docs/stable/generated/torch.nn.MaxPool1d.html#maxpool1d')
-    optional_conv.add_argument('--conv-vertical-variables', help='Variable short names for the vertical profile',
-                               required=False, default=None, nargs='*', dest='conv_vertical_variables')
-    optional_conv.add_argument('--conv-vertical-values', help='Vertical layer values for the vertical profile',
-                               required=False, default=None, nargs='*', dest='conv_vertical_values', type=int)
-    optional_conv.add_argument('--conv-channels', help='Channels of convolution layers',
-                               required=False, default=None, nargs='*', dest='conv_channels', type=int)
-    optional_conv.add_argument('--conv-kernels', help='Kernel sizes of convolution layers',
-                               required=False, default=None, nargs='*', dest='conv_kernels', type=int)
-    optional_conv.add_argument('--pool-kernels', help='Kernel sizes of pooling layers',
-                               required=False, default=None, nargs='*', dest='pool_kernels', type=int)
-    optional_conv.add_argument('--dropout-conv', help='Dropout probability during training for convolution',
-                               required=False, default=0.0, type=float, dest='dropout_conv')
+    optional_conv = parser.add_argument_group('Optional arguments for using Convolutional LSTM.')
+    optional_conv.add_argument('--conv-kernel-size', help='Kernel size(s) for Convolution operation', required=False,
+                               default=3, type=int, dest='conv_kernel_size', nargs='*')
+    optional_conv.add_argument('--maxpool-kernel-size', help='Kernel size(s) for MaxPool operation', required=False,
+                               default=2, type=int, dest='pool_kernel_size', nargs='*')
 
     optional = parser.add_argument_group('More optional arguments')
     optional.add_argument('config', help='Config file', is_config_file=True)
-    optional.add_argument('--dropout-lstm', help='Dropout probability during training for LSTM',
-                          required=False, default=0.0, type=float, dest='dropout_lstm')
+    optional.add_argument('--dropout', help='Dropout probability during embedding training',
+                          required=False, default=0.0, type=float, nargs='*', dest='dropout')
     optional.add_argument('--scaler-type', help='The scaling method to use while training the model',
                           required=False, default='MinMaxScaler', dest='scaler_type')
     optional.add_argument('--fcst-variables', help='Names or indices of forecast variables to use',
@@ -159,10 +147,10 @@ def main():
                           help='Triplet loss margin for training')
     optional.add_argument('--dataset-margin', required=False, dest='dataset_margin', default=np.nan, type=float,
                           help='The margin used while creating the triplet dataset')
-    optional.add_argument('--obs-stations-index', required=False, dest='obs_stations_index', default=None, nargs='*', type=int,
-                          help='The station indices to subset after reading observations')
-    optional.add_argument('--fcst-stations-index', required=False, dest='fcst_stations_index', default=None, nargs='*', type=int,
-                          help='The station indices to subset after reading forecasts')
+    optional.add_argument('--obs-stations-index', required=False, dest='obs_stations_index', default=None, nargs='*',
+                          type=int, help='The station indices to subset after reading observations')
+    optional.add_argument('--fcst-stations-index', required=False, dest='fcst_stations_index', default=None, nargs='*',
+                          type=int, help='The station indices to subset after reading forecasts')
     optional.add_argument('--cpu-cores', required=False, dest='cpu_cores', default=1, type=int,
                           help='The number of CPU to use during data preprocessig')
     optional.add_argument('--intermediate-file', required=False, dest='intermediate_file', default='',
@@ -216,11 +204,12 @@ def main():
     if args.conv_channels is None:
         network_type = 'LSTM'
     else:
-        network_type = 'Conv_LSTM'
+        network_type = 'ConvLSTM'
 
     print('Train deep network for Deep Analogs v {}'.format(__version__))
     print('Argument preview:')
     print(parser.format_values())
+    print('Use the embedding network {}'.format(network_type))
 
     if not os.path.exists(args.intermediate_file):
 
@@ -299,16 +288,26 @@ def main():
             'disable_pbar': False,
             'tqdm': tqdm,
             'fitness_num_negative': args.fitness_num_negative,
-            'trans_args': args.trans_args,
         }
 
-        if args.dataset_class == 'AnEnDatasetWithTimeWindow':
-            dataset = AnEnDatasetWithTimeWindow(**dataset_kwargs)
+        if network_type == 'ConvLSTM':
+            dataset_kwargs['forecast_grid_file'] = '/Users/wuh20/tmp/GFS_1p00.txt'
+            dataset_kwargs['obs_x'] = observations['Xs']
+            dataset_kwargs['obs_y'] = observations['Ys']
+            dataset_kwargs['metric_width'] = 5
+            dataset_kwargs['metric_height'] = 5
+            dataset = AnEnDatasetSpatial(**dataset_kwargs)
 
-        elif args.dataset_class == 'AnEnDatasetOneToMany':
-            assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnDatasetOneToMany!'
-            dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
-            dataset = AnEnDatasetOneToMany(**dataset_kwargs)
+        else:
+            dataset_kwargs['trans_args'] = args.trans_args
+
+            if args.dataset_class == 'AnEnDatasetWithTimeWindow':
+                dataset = AnEnDatasetWithTimeWindow(**dataset_kwargs)
+
+            elif args.dataset_class == 'AnEnDatasetOneToMany':
+                assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnDatasetOneToMany!'
+                dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
+                dataset = AnEnDatasetOneToMany(**dataset_kwargs)
 
         print(dataset)
 
@@ -342,48 +341,27 @@ def main():
         print('{} samples in the training. {} samples in the testing.'.format(len(train_dataset), len(test_dataset)))
         assert len(train_dataset) > 0 and len(test_dataset) > 0, 'Train/Test datasets cannot be empty!'
 
-        if network_type == 'Conv_LSTM':
-            # Prepare the vertical profile for the convolutional LSTM network
-            profile = VerticalProfile(
-                parameter_names=dataset.forecasts['ParameterNames'],
-                vertical_names=args.conv_vertical_variables,
-                vertical_values=args.conv_vertical_values,
-                verbose=True)
-
-            print('\nThese {} variables will be added to LSTM input:'.format(len(profile.general_variables)))
-            pprint(profile.general_variables)
-            print('These {} variables from {} vertical layers will be convoluted:'.format(
-                len(args.conv_vertical_variables), len(args.conv_vertical_values)))
-            pprint(args.conv_vertical_variables)
-            print('\n')
-
-            # This is the preprocessor to be attached to the network
-            preprocessor = profile.get_preprocessor()
-
-        else:
-            profile, preprocessor = None, None
-
         ##################
         # Model training #
         ##################
 
         num_forecast_variables = dataset.forecasts['Data'].shape[0]
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch, num_workers=args.load_workers, shuffle=True)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch, num_workers=args.test_load_workers)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch,
+                                                   num_workers=args.load_workers, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch,
+                                                  num_workers=args.test_load_workers)
 
         if args.intermediate_file:
             backup(args.intermediate_file, {
                 'num_forecast_variables': num_forecast_variables,
                 'scaler': scaler,
-                'profile': profile,
-                'preprocessor': preprocessor,
                 'train_loader': train_loader,
                 'test_loader': test_loader,
             })
 
     else:
         # If an intermediate file has been found
-        num_forecast_variables, scaler, profile, preprocessor, train_loader, test_loader = restore(args.intermediate_file).values()
+        num_forecast_variables, scaler, train_loader, test_loader = restore(args.intermediate_file).values()
 
     if network_type == 'LSTM':
         embedding_net = EmbeddingLSTM(
@@ -391,23 +369,20 @@ def main():
             hidden_features=args.lstm_hidden,
             hidden_layers=args.lstm_layers,
             output_features=args.embeddings,
-            scaler=scaler, dropout=args.dropout_lstm,
+            scaler=scaler,
+            dropout=args.dropout,
             subset_variables_index=args.fcst_variables)
 
-    elif network_type == 'Conv_LSTM':
+    elif network_type == 'ConvLSTM':
         embedding_net = EmbeddingConvLSTM(
-            additional_lstm_channels=len(profile.general_variables),
-            conv_in_channels=profile.variables_each_layer.item(),
-            conv_channels=args.conv_channels,
-            conv_kernels=args.conv_kernels,
-            pool_kernels=args.pool_kernels,
-            lstm_features=args.lstm_hidden,
-            lstm_layers=args.lstm_layers,
-            output_channels=args.embeddings,
+            input_features=num_forecast_variables,
+            hidden_features=args.lstm_hidden,
+            hidden_layers=args.lstm_layers,
+            conv_kernel_size=args.conv_kernel_size,
+            pool_kernel_size=args.pool_kernel_size,
+            output_features=args.embeddings,
+            dropout=args.dropout,
             scaler=scaler,
-            lstm_dropout=args.dropout_lstm,
-            conv_dropout=args.dropout_conv,
-            preprocessor=preprocessor,
             subset_variables_index=args.fcst_variables)
 
     else:
