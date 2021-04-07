@@ -403,7 +403,6 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         super().__init__(**kw)
 
         self.lead_time_radius = lead_time_radius
-        self.num_flts = len(self.forecasts['FLTs'])
         num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
 
         # Calculate a mask for which samples to keep or to remove
@@ -429,12 +428,10 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         triplet = self.samples[index]
 
         # Determine the start and the end indices for the lead time window
+        # 
+        # No need to check for lead time overflow because lead times at the boundary has already been removed
         flt_left = triplet[1] - self.lead_time_radius
         flt_right = triplet[1] + self.lead_time_radius + 1
-
-        # Check for overflow
-        flt_left = flt_left if flt_left >= 0 else 0
-        flt_right = flt_right if flt_right <= self.num_flts else self.num_flts
 
         # Get forecast values at a single station and from a lead time window
         anchor = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[2], flt_left:flt_right]
@@ -529,10 +526,6 @@ class AnEnDatasetOneToMany(AnEnDatasetWithTimeWindow):
         # Determine the start and the end indices for the lead time window
         flt_left = triplet[1] - self.lead_time_radius
         flt_right = triplet[1] + self.lead_time_radius + 1
-
-        # Check for overflow
-        flt_left = flt_left if flt_left >= 0 else 0
-        flt_right = flt_right if flt_right <= self.num_flts else self.num_flts
 
         # Get forecast values at a single station and from a lead time window
 
@@ -639,6 +632,14 @@ class AnEnDatasetSpatial(AnEnDataset):
         #
         self.station_match_lookup = self._match_stations(obs_x, obs_y)
 
+        # Determine the boundary of lead times during training to avoid stacking time series of different lengths
+        num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
+        assert num_lead_times >= 2 * self.lead_time_radius + 1, "Not enought lead times with a radius of {}".format(self.lead_time_radius)
+        lead_time_start = self.lead_time_radius
+        lead_time_end = num_lead_times - self.lead_time_radius
+
+        print('Sampling from {} lead time indices [{}:{}]'.format(lead_time_end-lead_time_start, lead_time_start, lead_time_end))
+
         # Create index samples
         #
         # Each sample is a length-of-5 list containing the following information:
@@ -652,13 +653,11 @@ class AnEnDatasetSpatial(AnEnDataset):
 
         # These variables will be used inside the for loops
         num_stations = len(self.station_match_lookup)
-        num_lead_times = sorted_members['index'].shape[2]
         self.num_total_entries = sorted_members['index'].shape[3]
-        self.num_flts = len(self.forecasts['FLTs'])
 
-        with self.tqdm(total=num_stations * num_lead_times, disable=self.disable_pbar, leave=True) as pbar:
+        with self.tqdm(total=num_stations * (lead_time_end - lead_time_start), disable=self.disable_pbar, leave=True) as pbar:
             for obs_station_index in range(num_stations):
-                for lead_time_index in range(num_lead_times):
+                for lead_time_index in np.arange(lead_time_start, lead_time_end):
 
                     for anchor_index, anchor_time_index in enumerate(sorted_members['anchor_times_index']):
 
@@ -771,10 +770,6 @@ class AnEnDatasetSpatial(AnEnDataset):
         flt_left = triplet[1] - self.lead_time_radius
         flt_right = triplet[1] + self.lead_time_radius + 1
 
-        # Check for overflow
-        flt_left = flt_left if flt_left >= 0 else 0
-        flt_right = flt_right if flt_right <= self.num_flts else self.num_flts
-
         # Get spatial mask
         fcst_station_mask = self.forecast_grid.getRectangle(
             triplet[5], self.spatial_metric_width, self.spatial_metric_height, self.padding)
@@ -801,8 +796,8 @@ class AnEnDatasetSpatial(AnEnDataset):
         if self.add_lead_time_index:
             lead_time_index = triplet[1]
 
-            if self.to_tensor:
                 lead_time_index = torch.tensor(lead_time_index, dtype=torch.long)
+            if self.to_tensor:
 
             ret.append(lead_time_index)
 
