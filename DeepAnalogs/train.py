@@ -314,6 +314,8 @@ def main():
                 assert args.matching_forecast_station >= 0, 'Please set --matching-forecast-station for AnEnDatasetOneToMany!'
                 dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
                 dataset = AnEnDatasetOneToMany(**dataset_kwargs)
+            else:
+                raise Exception('Unknown dataset class {}'.format(args.dataset_class))
 
         print(dataset)
 
