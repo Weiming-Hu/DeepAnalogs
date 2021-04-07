@@ -214,9 +214,12 @@ def main():
     else:
         network_type = 'LSTM'
 
-    # If only one dropout is specified, flatten the list to a scalar
-    if len(args.dropout) == 1:
-        args.dropout = args.dropout[0]
+    # If only a list of length 1 is provided, collapse the list into a scalar
+    for arg in ['conv_kernel_size', 'pool_kernel_size', 'dropout']:
+        v = getattr(args, arg)
+
+        if len(v) == 1:
+            setattr(args, arg, v[0])
 
     print('Train deep network for Deep Analogs v {}'.format(__version__))
     print('Argument preview:')

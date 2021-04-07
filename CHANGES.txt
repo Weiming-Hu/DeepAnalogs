@@ -1,4 +1,4 @@
-# DeepAnalogs 0.2.2
+# DeepAnalogs 0.2.3
 
 - Added `AnEnDatasetSpatial`
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
