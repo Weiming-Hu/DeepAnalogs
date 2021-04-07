@@ -629,7 +629,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         self.negative_sample_times = []
 
         # Parse the forecast grid file
-        AnEnGrid = self._get_grid_class()
+        AnEnGrid = AnEnDatasetSpatial.get_grid_class()
         self.forecast_grid = AnEnGrid(forecast_grid_file)
 
         # Determine the matching forecast station to each observation station
@@ -697,7 +697,8 @@ class AnEnDatasetSpatial(AnEnDataset):
         # [4]: negative time index
         # [5]: fcst station index]
 
-    def _get_grid_class(self):
+    @staticmethod
+    def get_grid_class():
         try:
             from AnEnGrid import AnEnGrid
 
