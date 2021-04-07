@@ -476,7 +476,7 @@ class AnEnDatasetOneToMany(AnEnDatasetWithTimeWindow):
     def __init__(self, matching_forecast_station, **kw):
         """
         Initialize an AnEnDatasetOneToMany class
-        :param matching_forecast_station: The index of the forecast station is matches the observation station.
+        :param matching_forecast_station: The index of the forecast station that matches the observation station.
         :param kw: Additional arguments to `AnEnDatasetWithTimeWindow`
         """
 
@@ -535,9 +535,15 @@ class AnEnDatasetOneToMany(AnEnDatasetWithTimeWindow):
         flt_right = flt_right if flt_right <= self.num_flts else self.num_flts
 
         # Get forecast values at a single station and from a lead time window
+
+        # Anchor is set to be the forecast at the current location
         anchor = self.forecasts[self.forecast_data_key][:, self.matching_forecast_station, triplet[2], flt_left:flt_right]
+
+        # Positive is set to be the forecast at the search location
         positive = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[3], flt_left:flt_right]
-        negative = self.forecasts[self.forecast_data_key][:, self.matching_forecast_station, triplet[4], flt_left:flt_right]
+
+        # Negative is set to be the forecast at the search location
+        negative = self.forecasts[self.forecast_data_key][:, triplet[0], triplet[4], flt_left:flt_right]
 
         # Fix dimensions
         anchor = np.expand_dims(anchor, 1)
