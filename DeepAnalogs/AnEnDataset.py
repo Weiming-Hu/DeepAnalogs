@@ -701,7 +701,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         try:
             from AnEnGrid import AnEnGrid
 
-        except ImportError:
+        except:
 
             # Guess the location
             guess = glob.glob(os.path.expanduser('~/github/AnalogsEnsemble/build/CGrid/AnEnGrid*'))
