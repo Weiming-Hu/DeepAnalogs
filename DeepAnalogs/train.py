@@ -100,7 +100,7 @@ def main():
     required_general.add_argument('--epochs', help='Number of training epochs', required=True, type=int)
 
     required_lstm = parser.add_argument_group(
-        'Required arguments for training a LSTM model.\n' +
+        'Required arguments for training an LSTM model.\n' +
         'LSTM: https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html#lstm')
     required_lstm.add_argument('--lstm-radius', help='The radius of lead time window',
                                required=True, type=int, dest='lstm_radius')
@@ -109,7 +109,9 @@ def main():
     required_lstm.add_argument('--lstm-layers', help='The number of layers',
                                required=True, type=int, dest='lstm_layers')
 
-    optional_conv = parser.add_argument_group('Optional arguments for using Convolutional LSTM.')
+    optional_conv = parser.add_argument_group('Optional arguments for using a Convolutional LSTM model.')
+    optional_conv.add_argument('--use-conv-lstm', help='Use a ConvLSTM embedding network', required=False,
+                               action='store_true', dest='use_conv_lstm')
     optional_conv.add_argument('--conv-kernel-size', help='Kernel size(s) for Convolution operation', required=False,
                                default=3, type=int, dest='conv_kernel_size', nargs='*')
     optional_conv.add_argument('--maxpool-kernel-size', help='Kernel size(s) for MaxPool operation', required=False,
@@ -201,10 +203,10 @@ def main():
         raise Exception('The input scaler type {} is not supported!'.format(args.scaler_type))
 
     # Decide the type of network to train
-    if args.conv_channels is None:
-        network_type = 'LSTM'
-    else:
+    if args.use_conv_lstm:
         network_type = 'ConvLSTM'
+    else:
+        network_type = 'LSTM'
 
     print('Train deep network for Deep Analogs v {}'.format(__version__))
     print('Argument preview:')
