@@ -78,8 +78,9 @@ class EmbeddingLSTM(nn.Module):
 
 
 class EmbeddingConvLSTM(nn.Module):
-    def __init__(self, input_features, hidden_features, hidden_layers, conv_kernel_size, pool_kernel_size,
-                 output_features, dropout, scaler=None, subset_variables_index=None):
+    def __init__(self, input_width, input_height, input_features, hidden_features, hidden_layers,
+                 conv_kernel_size, pool_kernel_size, output_features, dropout=0.0, scaler=None,
+                 subset_variables_index=None):
         super().__init__()
 
         self.scalar = scaler
@@ -97,7 +98,13 @@ class EmbeddingConvLSTM(nn.Module):
                                   pool_kernel_size=pool_kernel_size,
                                   dropout=dropout)
 
-        self.fc = nn.Linear(in_features=hidden_features, out_features=output_features)
+        # Estimate the number of grids after convolution
+        shape_after_conv = self.conv_lstm(
+                torch.rand(1, 2, input_features, input_height, input_width)).shape[-2:]
+
+        # Use all grids left after convolution as input variables
+        self.fc = nn.Linear(in_features=hidden_features*shape_after_conv[0]*shape_after_conv[1],
+                            out_features=output_features)
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, height, width, lead times]
@@ -119,9 +126,10 @@ class EmbeddingConvLSTM(nn.Module):
 
         # Forward pass
         output = self.conv_lstm(x)
-        assert output.shape[2] == output.shape[3] == 1, 'ConvLSTM output should have 1x1 for height and width. ' \
-                'Got {}x{}'.format(output.shape[2], output.shape[3])
-        output = output.select(1, -1).squeeze(3).squeeze(2)
+
+        # Select the last timestamp and flatten all grids left in the spatial domain to be 1-dimensional
+        output = output.select(1, -1).flatten(1, 3)
+
         output = self.fc(output)
 
         # Output dimensions [samples, latent features]
