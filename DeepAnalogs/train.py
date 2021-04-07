@@ -392,6 +392,8 @@ def main():
 
     elif network_type == 'ConvLSTM':
         embedding_net = EmbeddingConvLSTM(
+            input_width = args.spatial_mask_width,
+            input_height = args.spatial_mask_height,
             input_features=num_forecast_variables,
             hidden_features=args.lstm_hidden,
             hidden_layers=args.lstm_layers,

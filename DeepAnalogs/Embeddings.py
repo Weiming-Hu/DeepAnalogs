@@ -99,12 +99,12 @@ class EmbeddingConvLSTM(nn.Module):
                                   dropout=dropout)
 
         # Estimate the number of grids after convolution
-        shape_after_conv = self.conv_lstm(
-                torch.rand(1, 2, input_features, input_height, input_width)).shape[-2:]
+        shape_after_conv = self.conv_lstm( torch.rand(1, 2, input_features, input_height, input_width)).shape[-2:]
+        n_grids = shape_after_conv[0] * shape_after_conv[1]
+        assert n_grids > 0, 'ConvLSTM produces 0 length output! Check your network hyperparameters!'
 
         # Use all grids left after convolution as input variables
-        self.fc = nn.Linear(in_features=hidden_features*shape_after_conv[0]*shape_after_conv[1],
-                            out_features=output_features)
+        self.fc = nn.Linear(in_features=hidden_features*n_grids, out_features=output_features)
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, height, width, lead times]
