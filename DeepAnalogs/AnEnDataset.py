@@ -796,8 +796,8 @@ class AnEnDatasetSpatial(AnEnDataset):
         if self.add_lead_time_index:
             lead_time_index = triplet[1]
 
-                lead_time_index = torch.tensor(lead_time_index, dtype=torch.long)
             if self.to_tensor:
+                lead_time_index = torch.tensor(lead_time_index, dtype=torch.long)
 
             ret.append(lead_time_index)
 
