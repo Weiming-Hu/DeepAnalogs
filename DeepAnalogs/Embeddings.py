@@ -126,10 +126,10 @@ class EmbeddingConvLSTM(nn.Module):
             # The scaler takes shapes of [features, *, *, *].
             # Therefore, I need to fix the dimensions.
             # 
-            s, c, h, w, s = x.shape
+            B, C, H, W, S = x.shape
             x = x.transpose(0, 1).flatten(2, 3)
             x = self.scaler.transform(x)
-            x = x.reshape(c, s, h, w, s).transpose(0, 1)
+            x = x.reshape(C, B, H, W, S).transpose(0, 1)
 
         # Fix dimensions to be [B, T, C, H, W] for [samples, lead times, features, height, width]
         x = x.permute(0, 4, 1, 2, 3)
