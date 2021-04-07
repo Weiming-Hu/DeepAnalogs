@@ -119,6 +119,8 @@ class EmbeddingConvLSTM(nn.Module):
 
         # Forward pass
         output = self.conv_lstm(x)
+        assert output.shape[2] == output.shape[3] == 1, 'ConvLSTM output should have 1x1 for height and width. ' \
+                'Got {}x{}'.format(output.shape[2], output.shape[3])
         output = output.select(1, -1).squeeze(3).squeeze(2)
         output = self.fc(output)
 

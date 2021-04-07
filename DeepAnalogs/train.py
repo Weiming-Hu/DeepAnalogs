@@ -116,6 +116,10 @@ def main():
                                default=3, type=int, dest='conv_kernel_size', nargs='*')
     optional_conv.add_argument('--maxpool-kernel-size', help='Kernel size(s) for MaxPool operation', required=False,
                                default=2, type=int, dest='pool_kernel_size', nargs='*')
+    optional_conv.add_argument('--spatial-mask-width', help='Width of the spatial mask', required=False,
+                               default=3, type=int, dest='spatial_mask_width')
+    optional_conv.add_argument('--spatial-mask-height', help='Height of the spatial mask', required=False,
+                               default=3, type=int, dest='spatial_mask_height')
 
     optional = parser.add_argument_group('More optional arguments')
     optional.add_argument('config', help='Config file', is_config_file=True)
@@ -166,7 +170,7 @@ def main():
                           help='A distionary for transformation [fitness selection]')
     optional.add_argument('--wdecay', help='Weight decay', required=False, type=float, default=0.0)
     optional.add_argument('--dataset-class', required=False, default='AnEnDatasetWithTimeWindow', dest='dataset_class',
-                          help='Which dataset class to use. Currently supports AnEnDatasetOneToMany and AnEnDatasetWithTimeWindow')
+                          help='One of [AnEnDatasetOneToMany, AnEnDatasetWithTimeWindow, AnEnDatasetSpatial]')
     optional.add_argument('--matching-forecast-station', required=False, default=-1, type=int, dest='matching_forecast_station',
                           help='The index of the forecast station to match the observation station [AnEnDatasetOneToMany]')
 
@@ -300,8 +304,8 @@ def main():
             dataset_kwargs['forecast_grid_file'] = '/Users/wuh20/tmp/GFS_1p00.txt'
             dataset_kwargs['obs_x'] = observations['Xs']
             dataset_kwargs['obs_y'] = observations['Ys']
-            dataset_kwargs['metric_width'] = 5
-            dataset_kwargs['metric_height'] = 5
+            dataset_kwargs['metric_width'] = args.spatial_mask_width
+            dataset_kwargs['metric_height'] = args.spatial_mask_height
             dataset = AnEnDatasetSpatial(**dataset_kwargs)
 
         else:
@@ -315,7 +319,7 @@ def main():
                 dataset_kwargs['matching_forecast_station'] = args.matching_forecast_station
                 dataset = AnEnDatasetOneToMany(**dataset_kwargs)
             else:
-                raise Exception('Unknown dataset class {}'.format(args.dataset_class))
+                raise Exception('Unknown dataset class {} for LSTM'.format(args.dataset_class))
 
         print(dataset)
 
