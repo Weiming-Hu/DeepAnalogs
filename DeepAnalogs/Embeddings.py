@@ -83,7 +83,7 @@ class EmbeddingConvLSTM(nn.Module):
                  subset_variables_index=None):
         super().__init__()
 
-        self.scalar = scaler
+        self.scaler = scaler
         self.embedding_type = 2
 
         if subset_variables_index is None:
