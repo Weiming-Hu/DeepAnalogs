@@ -208,6 +208,10 @@ def main():
     else:
         network_type = 'LSTM'
 
+    # If only one dropout is specified, flatten the list to a scalar
+    if len(args.dropout) == 1:
+        args.dropout = args.dropout[0]
+
     print('Train deep network for Deep Analogs v {}'.format(__version__))
     print('Argument preview:')
     print(parser.format_values())
