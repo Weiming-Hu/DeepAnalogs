@@ -113,9 +113,9 @@ def main():
     optional_conv.add_argument('--use-conv-lstm', help='Use a ConvLSTM embedding network', required=False,
                                action='store_true', dest='use_conv_lstm')
     optional_conv.add_argument('--conv-kernel-size', help='Kernel size(s) for Convolution operation', required=False,
-                               default=3, type=int, dest='conv_kernel_size', nargs='*')
+                               default=[3], type=int, dest='conv_kernel_size', nargs='*')
     optional_conv.add_argument('--maxpool-kernel-size', help='Kernel size(s) for MaxPool operation', required=False,
-                               default=2, type=int, dest='pool_kernel_size', nargs='*')
+                               default=[2], type=int, dest='pool_kernel_size', nargs='*')
     optional_conv.add_argument('--forecast-grid-file', help='The grid file for forecast stations', required=False,
                                default=None, type=str, dest='forecast_grid_file')
     optional_conv.add_argument('--spatial-mask-width', help='Width of the spatial mask', required=False,
@@ -126,7 +126,7 @@ def main():
     optional = parser.add_argument_group('More optional arguments')
     optional.add_argument('config', help='Config file', is_config_file=True)
     optional.add_argument('--dropout', help='Dropout probability during embedding training',
-                          required=False, default=0.0, type=float, nargs='*', dest='dropout')
+                          required=False, default=[0.0], type=float, nargs='*', dest='dropout')
     optional.add_argument('--scaler-type', help='The scaling method to use while training the model',
                           required=False, default='MinMaxScaler', dest='scaler_type')
     optional.add_argument('--fcst-variables', help='Names or indices of forecast variables to use',
