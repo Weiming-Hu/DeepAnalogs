@@ -101,11 +101,8 @@ class EmbeddingConvLSTM(nn.Module):
                                   dropout=dropout)
 
         # Estimate the number of grids after convolution
-        try:
-            rand_input = torch.rand(1, 2, input_features, self.input_height, self.input_width)
-            shape_after_conv = self.conv_lstm(rand_input).shape[-2:]
-        except:
-            raise Exception("An error has occurred while detecting the output size of ConvLSTM! Please check hyperparameters!")
+        rand_input = torch.rand(1, 2, input_features, self.input_height, self.input_width)
+        shape_after_conv = self.conv_lstm(rand_input).shape[-2:]
 
         n_grids = shape_after_conv[0] * shape_after_conv[1]
         assert n_grids > 0, 'ConvLSTM produces 0 length output! Check your network hyperparameters!'

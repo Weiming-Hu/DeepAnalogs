@@ -638,7 +638,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         lead_time_start = self.lead_time_radius
         lead_time_end = num_lead_times - self.lead_time_radius
 
-        print('Sampling from {} lead time indices [{}:{}]'.format(lead_time_end-lead_time_start, lead_time_start, lead_time_end))
+        print('Sampling from {} lead time indices [{}:{})'.format(lead_time_end-lead_time_start, lead_time_start, lead_time_end))
 
         # Create index samples
         #
