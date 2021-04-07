@@ -85,6 +85,8 @@ class EmbeddingConvLSTM(nn.Module):
 
         self.scaler = scaler
         self.embedding_type = 2
+        self.input_width = input_width
+        self.input_height = input_height
 
         if subset_variables_index is None:
             self.subset_variables_index = None
@@ -100,7 +102,7 @@ class EmbeddingConvLSTM(nn.Module):
 
         # Estimate the number of grids after convolution
         try:
-            rand_input = torch.rand(1, 2, input_features, input_height, input_width)
+            rand_input = torch.rand(1, 2, input_features, self.input_height, self.input_width)
             shape_after_conv = self.conv_lstm(rand_input).shape[-2:]
         except:
             raise Exception("An error has occurred while detecting the output size of ConvLSTM! Please check hyperparameters!")
