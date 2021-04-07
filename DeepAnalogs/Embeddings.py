@@ -115,6 +115,8 @@ class EmbeddingConvLSTM(nn.Module):
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, height, width, lead times]
+        assert x.shape[2] == self.input_height, "Expect height of {}, got {}".format(self.input_height)
+        assert x.shape[3] == self.input_width, "Expect width of {}, got {}".format(self.input_width)
 
         # Sanity check
         assert len(x.shape) == 5, '5-dimensional input is expected [samples, features, height, width, lead times]'
@@ -124,9 +126,13 @@ class EmbeddingConvLSTM(nn.Module):
             if not self.subset_variables_index is None:
                 x = torch.index_select(x, 1, self.subset_variables_index)
 
-            x = torch.transpose(x, 0, 1)
+            # The scaler takes shapes of [features, *, *, *].
+            # Therefore, I need to fix the dimensions.
+            # 
+            s, c, h, w, s = x.shape
+            x = x.transpose(0, 1).flatten(2, 3)
             x = self.scaler.transform(x)
-            x = torch.transpose(x, 0, 1)
+            x = x.reshape(c, s, h, w, s).transpose(0, 1)
 
         # Fix dimensions to be [B, T, C, H, W] for [samples, lead times, features, height, width]
         x = x.permute(0, 4, 1, 2, 3)
