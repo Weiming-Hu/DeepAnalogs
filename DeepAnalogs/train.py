@@ -116,6 +116,8 @@ def main():
                                default=3, type=int, dest='conv_kernel_size', nargs='*')
     optional_conv.add_argument('--maxpool-kernel-size', help='Kernel size(s) for MaxPool operation', required=False,
                                default=2, type=int, dest='pool_kernel_size', nargs='*')
+    optional_conv.add_argument('--forecast-grid-file', help='The grid file for forecast stations', required=False,
+                               default=None, type=str, dest='forecast_grid_file')
     optional_conv.add_argument('--spatial-mask-width', help='Width of the spatial mask', required=False,
                                default=3, type=int, dest='spatial_mask_width')
     optional_conv.add_argument('--spatial-mask-height', help='Height of the spatial mask', required=False,
@@ -301,7 +303,7 @@ def main():
         }
 
         if network_type == 'ConvLSTM':
-            dataset_kwargs['forecast_grid_file'] = '/Users/wuh20/tmp/GFS_1p00.txt'
+            dataset_kwargs['forecast_grid_file'] = args.forecast_grid_file
             dataset_kwargs['obs_x'] = observations['Xs']
             dataset_kwargs['obs_y'] = observations['Ys']
             dataset_kwargs['metric_width'] = args.spatial_mask_width
