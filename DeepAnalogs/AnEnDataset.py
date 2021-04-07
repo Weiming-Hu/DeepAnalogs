@@ -694,7 +694,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         # [2]: anchor time index
         # [3]: positive time index
         # [4]: negative time index
-        # [5]: fcst station index]
+        # [5]: fcst station index
 
     @staticmethod
     def get_grid_class():
