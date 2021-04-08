@@ -66,8 +66,7 @@ class ConvLSTMCell(nn.Module):
 
     def _make_layer(self, in_channels, out_channels, kernel_size, padding, stride):
         return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels,
-                      kernel_size=kernel_size, padding=padding, stride=stride, bias=False),
+            nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, stride=stride, bias=True),
             nn.BatchNorm2d(out_channels))
 
     def forward(self, inputs):
@@ -99,15 +98,18 @@ class ConvLSTMCell(nn.Module):
 
 class ConvLSTM(nn.Module):
     def __init__(self, input_features, hidden_features, num_layers,
-                 conv_kernel_size=3, pool_kernel_size=2, dropout=0.0, batch_first=True):
+                 layer_types='conv_lstm', conv_kernel_size=3, pool_kernel_size=2, dropout=0.0, batch_first=True):
         super().__init__()
 
         conv_kernel_size = self._extend_for_multilayer(conv_kernel_size, num_layers)
         pool_kernel_size = self._extend_for_multilayer(pool_kernel_size, num_layers)
         hidden_features = self._extend_for_multilayer(hidden_features, num_layers)
+        layer_types = self._extend_for_multilayer(layer_types, num_layers)
         dropout = self._extend_for_multilayer(dropout, num_layers)
-        assert len(conv_kernel_size) == len(hidden_features) == len(pool_kernel_size) == len(dropout) == num_layers, \
-            'Length of (conv/pool kernel, dropout) size and hidden features do not match the number of layers'
+
+        assert len(conv_kernel_size) == len(hidden_features) == len(layer_types) == \
+               len(pool_kernel_size) == len(dropout) == num_layers, \
+            'Length of (conv/pool kernel, dropout, layer type, hidden features) do not match the number of layers'
 
         self.input_features = input_features
         self.hidden_features = hidden_features
@@ -116,32 +118,65 @@ class ConvLSTM(nn.Module):
         self.pool_kernel_size = pool_kernel_size
         self.dropout = dropout
         self.batch_first = batch_first
+        self.layer_types = layer_types
 
-        layers = OrderedDict()
+        self.layers = OrderedDict()
         for i in range(self.num_layers):
+            sub_layers = OrderedDict()
+
             cur_input_dim = self.input_features if i == 0 else self.hidden_features[i-1]
-            layers['ConvLSTMCell_{}'.format(i)] = ConvLSTMCell(input_features=cur_input_dim,
-                                                            hidden_features=self.hidden_features[i],
-                                                            kernel_size=self.conv_kernel_size[i])
-            layers['Dropout_{}'.format(i)] = Dropout2dSequence(p=self.dropout[i], inplace=True)
-            layers['MaxPool_{}'.format(i)] = MaxPool2dSequence(kernel_size=self.pool_kernel_size[i])
 
-        self.layers = nn.Sequential(layers)
+            if self.layer_types[i] == 'conv_lstm':
+                sub_layers['ConvLSTMCell'] = ConvLSTMCell(input_features=cur_input_dim,
+                                                          hidden_features=self.hidden_features[i],
+                                                          kernel_size=self.conv_kernel_size[i])
 
-    def forward(self, inputs):
+                sub_layers['Dropout2d'] = Dropout2dSequence(p=self.dropout[i], inplace=True)
+                sub_layers['MaxPool2d'] = MaxPool2dSequence(kernel_size=self.pool_kernel_size[i])
+
+            elif self.layer_types[i] == 'conv':
+                sub_layers['Conv2d'] = nn.Conv2d(in_channels=cur_input_dim,
+                                                 out_channels=self.hidden_features[i],
+                                                 kernel_size=self.conv_kernel_size[i],
+                                                 padding=1, stride=1)
+
+                sub_layers['BatchNorm2d'] = nn.BatchNorm2d(self.hidden_features[i])
+                sub_layers['LeakyReLU'] = nn.LeakyReLU(inplace=True)
+
+                sub_layers['Dropout2d'] = nn.Dropout2d(p=self.dropout[i], inplace=True)
+                sub_layers['MaxPool2d'] = nn.MaxPool2d(kernel_size=self.pool_kernel_size[i])
+
+            else:
+                raise Exception('Unknown layer type: {}'.format(self.layer_types[i]))
+
+            self.layers['{}{}'.format(self.layer_types[i], i)] = nn.Sequential(sub_layers)
+
+        self.layers = nn.Sequential(self.layers)
+
+    def forward(self, x):
         """
         :param inputs: 5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
         """
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
-            inputs = inputs.permute(1, 0, 2, 3, 4)
+            inputs = x.permute(1, 0, 2, 3, 4)
 
-        return self.layers(inputs)
+        for layer_type, layer in zip(self.layer_types, self.layers):
+            if layer_type == 'conv':
+                B, T, C, H, W = x.shape
+                x = x.reshape(B * T, C, H, W)
+
+            x = layer(x)
+
+            if layer_type == 'conv':
+                x = x.reshape(B, T, x.shape[1], x.shape[2], x.shape[3])
+
+        return x
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers: int):
-        if isinstance(param, int) or isinstance(param, float):
+        if isinstance(param, int) or isinstance(param, float) or isinstance(param, str):
             return (param,) * num_layers
         elif isinstance(param, list):
             return tuple(param)

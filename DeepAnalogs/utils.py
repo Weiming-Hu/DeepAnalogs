@@ -346,6 +346,7 @@ def summary_pytorch(model):
 
     for name, parameter in model.named_parameters():
         if not parameter.requires_grad: continue
+        if name[:2] == 'fc' and hasattr(model, 'fc_last') and not model.fc_last: continue
         param = parameter.numel()
         table.add_row([name, param])
         total_params += param

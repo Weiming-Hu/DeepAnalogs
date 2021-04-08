@@ -290,6 +290,7 @@ def main():
             input_features=num_forecast_variables,
             hidden_features=args['model']['lstm_hidden'],
             hidden_layers=args['model']['lstm_layers'],
+            hidden_layer_types=args['model']['hidden_layer_types'],
             conv_kernel_size=args['model']['conv_kernel'],
             pool_kernel_size=args['model']['pool_kernel'],
             output_features=args['model']['lstm_output'],

@@ -19,7 +19,7 @@ from DeepAnalogs.ConvLSTM import ConvLSTM
 
 class EmbeddingLSTM(nn.Module):
     def __init__(self, input_features, hidden_features, hidden_layers, output_features,
-                 scaler=None, dropout=0.0, subset_variables_index=None, fc_last=True):
+                 scaler=None, dropout=0.0, subset_variables_index=None, fc_last=False):
         
         super().__init__()
         
@@ -86,9 +86,9 @@ class EmbeddingLSTM(nn.Module):
 
 
 class EmbeddingConvLSTM(nn.Module):
-    def __init__(self, input_width, input_height, input_features, hidden_features, hidden_layers,
-                 conv_kernel_size, pool_kernel_size, output_features,
-                 dropout=0.0, scaler=None, subset_variables_index=None, fc_last=True):
+    def __init__(self, input_width, input_height, input_features, hidden_features,
+                 hidden_layers, hidden_layer_types, conv_kernel_size, pool_kernel_size, output_features,
+                 dropout=0.0, scaler=None, subset_variables_index=None, fc_last=False):
         super().__init__()
 
         self.scaler = scaler
@@ -105,6 +105,7 @@ class EmbeddingConvLSTM(nn.Module):
         self.conv_lstm = ConvLSTM(input_features=input_features,
                                   hidden_features=hidden_features,
                                   num_layers=hidden_layers,
+                                  layer_types=hidden_layer_types,
                                   conv_kernel_size=conv_kernel_size,
                                   pool_kernel_size=pool_kernel_size,
                                   dropout=dropout)
@@ -117,6 +118,7 @@ class EmbeddingConvLSTM(nn.Module):
         assert n_grids > 0, 'ConvLSTM produces 0 length output! Check your network hyperparameters!'
 
         # Use all grids left after convolution as input variables
+        hidden_features = hidden_features[-1] if isinstance(hidden_features, list) else hidden_features
         self.fc = nn.Linear(in_features=hidden_features * n_grids, out_features=output_features)
 
         if not self.fc_last:
