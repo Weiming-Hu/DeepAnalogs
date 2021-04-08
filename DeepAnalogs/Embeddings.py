@@ -19,12 +19,13 @@ from DeepAnalogs.ConvLSTM import ConvLSTM
 
 class EmbeddingLSTM(nn.Module):
     def __init__(self, input_features, hidden_features, hidden_layers, output_features,
-                 scaler=None, dropout=0.0, subset_variables_index=None):
+                 scaler=None, dropout=0.0, subset_variables_index=None, fc_last=True):
         
         super().__init__()
         
         self.scaler = scaler
         self.embedding_type = 1
+        self.fc_last = fc_last
 
         if subset_variables_index is None:
             self.subset_variables_index = None
@@ -40,6 +41,10 @@ class EmbeddingLSTM(nn.Module):
 
         self.fc = nn.Linear(in_features=hidden_features,
                             out_features=output_features)
+
+        if not self.fc_last:
+            assert hidden_features == output_features, \
+                'Hidden and output features should be the same when no fully connected layers at the end'
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, 1 station, lead times]
@@ -73,7 +78,10 @@ class EmbeddingLSTM(nn.Module):
         # LSTM forward pass
         output, lstm_state = self.lstm(x)
         output = output.select(1, -1)
-        output = self.fc(output)
+
+        if self.fc_last:
+            output = self.fc(output)
+
         return output
 
 

@@ -280,7 +280,8 @@ def main():
             output_features=args['model']['lstm_output'],
             scaler=scaler,
             dropout=args['model']['dropout'],
-            subset_variables_index=args['data']['fcst_variables'])
+            subset_variables_index=args['data']['fcst_variables'],
+            fc_last=args['model']['linear_layer_last'])
 
     elif network_type == 'ConvLSTM':
         embedding_net = EmbeddingConvLSTM(
