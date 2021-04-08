@@ -153,26 +153,27 @@ class ConvLSTM(nn.Module):
 
         self.layers = nn.Sequential(self.layers)
 
-    def forward(self, x):
+    def forward(self, inputs):
         """
         :param inputs: 5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
         """
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
-            inputs = x.permute(1, 0, 2, 3, 4)
+            inputs = inputs.permute(1, 0, 2, 3, 4)
 
         for layer_type, layer in zip(self.layer_types, self.layers):
-            if layer_type == 'conv':
-                B, T, C, H, W = x.shape
-                x = x.reshape(B * T, C, H, W)
-
-            x = layer(x)
+            B, T, C, H, W = inputs.shape
 
             if layer_type == 'conv':
-                x = x.reshape(B, T, x.shape[1], x.shape[2], x.shape[3])
+                inputs = inputs.reshape(B * T, C, H, W)
 
-        return x
+            outputs = layer(inputs)
+
+            if layer_type == 'conv':
+                outputs = outputs.reshape(B, T, outputs.shape[1], outputs.shape[2], outputs.shape[3])
+
+        return outputs
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers: int):
