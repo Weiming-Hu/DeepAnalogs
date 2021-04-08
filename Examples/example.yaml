@@ -75,19 +75,19 @@ data:
     analogs: __REQUIRED__
 
     # Names or indices of forecast variables to use
-    # Example: [0, 2, 4] or ['temperature', 'wind speed', 'wind direction']
+    # Example: [0, 2, 4] or ['temperature', 'wind speed'] or !!null for no subsetting
     #
     fcst_variables: !!null
 
     # Weights for observation variables when calculating the reverse analogs
     # The default is equal weighting for all observation variables.
-    # Example: [0, 0, 1, 0, 0] or [0.2, 0.2, 0.6]
+    # Example: [0, 0, 1, 0, 0] or [0.2, 0.2, 0.6] or !!null for the default
     #
     obs_weights: !!null
 
     # The observation variable index that should always be positive
     # If the variable value is non-positive, it won't be used during training.
-    # Example: 2
+    # Example: 2 or !!null for no restriction
     positive_index: !!null
 
     # If the entire dataset is too large, set this probability carry out random sampling.
@@ -107,12 +107,12 @@ data:
     dataset_margin: np.nan
 
     # The station indices to subset after reading observations
-    # Example: [0, 3, 5]
+    # Example: [0, 3, 5] or !!null for no subsetting
     #
     obs_stations_index: !!null
 
     # The station indices to subset after reading forecasts
-    # Example: [0, 3, 5]
+    # Example: [0, 3, 5] or !!null for no subsetting
     #
     fcst_stations_index: !!null
 

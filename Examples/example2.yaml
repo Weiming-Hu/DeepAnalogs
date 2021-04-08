@@ -107,12 +107,12 @@ data:
     dataset_margin: np.nan
 
     # The station indices to subset after reading observations
-    # Example: [0, 3, 5]
+    # Example: [0, 3, 5] or !!null for no subsetting
     #
     obs_stations_index: !!null
 
     # The station indices to subset after reading forecasts
-    # Example: [0, 3, 5]
+    # Example: [0, 3, 5] or !!null for no subsetting
     #
     fcst_stations_index: !!null
 
