@@ -52,7 +52,7 @@ class AnEnDataset(Dataset):
                  margin=np.nan, positive_predictand_index=None,
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-                 fitness_num_negative=1, add_lead_time_index=False, trans_args=None):
+                 fitness_num_negative=1, add_lead_time_index=False):
         """
         Initialize an AnEnDataset
 
@@ -73,7 +73,6 @@ class AnEnDataset(Dataset):
         negative candidates to select for each positive candidate. The selection will be sampling without replacement
         to ensure that a particular negative candidate is only selected once for a particular positive candidate.
         :param add_lead_time_index: Whether to add lead time index in the results of __get_item__
-        :param trans_args Arguments as a dictionary for the transformation in fitness selection
         """
 
         # Sanity checks
@@ -120,23 +119,6 @@ class AnEnDataset(Dataset):
         self.anchor_sample_times = []
         self.positive_sample_times = []
         self.negative_sample_times = []
-
-        # Decide the transformation function
-        self.trans_args = trans_args
-
-        if self.trans_args is None:
-            self.trans_func = None
-        else:
-            msg = 'Transformation arguments must be a dictionary! Got {}'.format(type(trans_args))
-            assert isinstance(trans_args, dict), msg
-
-            if self.trans_args['method'] == 'exponential':
-                for k in ['a', 'b', 'c']:
-                    self.trans_args[k] = float(self.trans_args[k])
-
-                self.trans_func = AnEnDataset._transform_exponential
-            else:
-                raise Exception('No supported type: {}'.format(self.trans_args['method']))
 
         # Create index samples
         #
@@ -216,9 +198,6 @@ class AnEnDataset(Dataset):
 
         # Replace NAN with 0
         distance_inverse[np.isnan(distance_inverse)] = 0
-
-        if self.trans_func is not None:
-            distance_inverse = self.trans_func(distance_inverse, **self.trans_args)
 
         for analog_index in range(self.num_analogs):
             positive_candidate_index = analog_index
@@ -368,22 +347,6 @@ class AnEnDataset(Dataset):
             ret.append(lead_time_index)
 
         return ret
-
-    @staticmethod
-    def _transform_exponential(y, a, b, c, method):
-        """
-        Multiply the input `y` with a exponential distribution transformation. The exponential distribution function
-        is as follows:
-            y_multiplier = a * np.exp(-b * x), where x is the rank of y normalized to `[0, c]`.
-        """
-        # An example:
-        # a = 0.05, b = 0.02, c = 100
-
-        x = np.arange(0, len(y), 1)
-        x = x / bn.nanmax(x) * c
-
-        multiplier = a * np.exp(-b * x)
-        return y * multiplier
 
 
 class AnEnDatasetWithTimeWindow(AnEnDataset):
@@ -613,7 +576,6 @@ class AnEnDatasetSpatial(AnEnDataset):
         self.spatial_metric_height = metric_height
 
         # These members are not used in the current class
-        self.trans_func = None
         self.add_lead_time_index = False
 
         self.samples = []

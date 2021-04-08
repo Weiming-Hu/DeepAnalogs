@@ -12,8 +12,11 @@
 # This file contains utility functions.
 #
 
+import os
 import gc
 import math
+import yaml
+import time
 import numpy as np
 import bottleneck as bn
 
@@ -22,7 +25,67 @@ from functools import partial
 from bisect import bisect_left
 from sklearn import preprocessing
 from prettytable import PrettyTable
+from datetime import datetime, timezone
 from tqdm.contrib.concurrent import process_map
+
+
+def read_yaml(file):
+    with open(file, 'r') as file:
+        args = yaml.load(file, Loader=yaml.FullLoader)
+    return args
+
+
+def validate_args(args):
+
+    # Check groups
+    expected_groups = ['io', 'data', 'model', 'train']
+
+    assert len(args.keys()) == len(expected_groups) and \
+           all([k in expected_groups for k in args.keys()]), \
+        'Allowed argument groups: {}'.format(expected_groups)
+
+    # General check
+    err_msg = []
+    for group in expected_groups:
+        for k, v in args[group].items():
+
+            if v == '__REQUIRED__':
+                err_msg.append('Please provide argument [{}] in the group [{}]!'.format(k, group))
+
+            if v == 'np.nan':
+                args[group][k] = np.nan
+
+            if isinstance(v, str) and len(v) > 0 and v[0] == '~':
+                args[group][k] = os.path.expanduser(args[group][k])
+
+    # Specific check
+    if args['model']['use_conv_lstm']:
+        grid_file = args['model']['forecast_grid_file']
+        if not os.path.exists(grid_file):
+            err_msg.append('Forecast grid not found: {}'.format(grid_file))
+
+    if args['data']['triplet_sample_method'] == 'fitness':
+        num_negative = args['data']['fitness_num_negative']
+        if not isinstance(num_negative, int):
+            err_msg.append('Invalid fitness_num_negative: {}'.format(num_negative))
+
+    if args['data']['dataset_class'] == 'AnEnDatasetOneToMany':
+        matching_station = args['data']['matching_forecast_station']
+        if isinstance(matching_station, int) and matching_station > 0:
+            pass
+        else:
+            err_msg.append('Invalid matching_forecast_station: {}'.format(matching_station))
+
+    if len(err_msg) != 0:
+        err_msg = '\n'.join(err_msg)
+        raise Exception('Failed during argument validation:\n' + err_msg)
+
+    # Change from str to datetime
+    for k in ['split', 'anchor_start', 'anchor_end', 'search_start', 'search_end']:
+        dt = time.strptime(args['io'][k], '%Y/%m/%d %H:%M:%S')
+        args['io'][k] = datetime(*(dt[0:6]), tzinfo=timezone.utc)
+
+    return args
 
 
 def legend_without_duplicate_labels(ax):

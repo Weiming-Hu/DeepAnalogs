@@ -1,10 +1,11 @@
-# DeepAnalogs 0.2.4
+# DeepAnalogs 0.2.5
 
 - Added `AnEnDatasetSpatial`
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
 - Added training with Convolutional LSTM embeddings
 - Moved lead time checked from `__get_item__` to initialization in `AnEnDataset` and the derived classes
 - Changed `--dropout-lstm` to `--dropout`
+- Moved from command line options to YAML configuration
 
 # DeepAnalogs 0.1.4
 
