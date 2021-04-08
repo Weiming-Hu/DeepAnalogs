@@ -108,13 +108,12 @@ class EmbeddingConvLSTM(nn.Module):
         n_grids = shape_after_conv[0] * shape_after_conv[1]
         assert n_grids > 0, 'ConvLSTM produces 0 length output! Check your network hyperparameters!'
 
-        if self.fc_last:
-            # Use all grids left after convolution as input variables
-            self.fc = nn.Linear(in_features=hidden_features * n_grids, out_features=output_features)
+        # Use all grids left after convolution as input variables
+        self.fc = nn.Linear(in_features=hidden_features * n_grids, out_features=output_features)
 
-        else:
+        if not self.fc_last:
             assert hidden_features == output_features, \
-                'Hidden and output features shoudl be the same when no fully connected layers at the end'
+                'Hidden and output features should be the same when no fully connected layers at the end'
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, height, width, lead times]
