@@ -124,8 +124,7 @@ class ConvLSTM(nn.Module):
                                                             hidden_features=self.hidden_features[i],
                                                             kernel_size=self.conv_kernel_size[i])
             layers['Dropout_{}'.format(i)] = Dropout2dSequence(p=self.dropout[i], inplace=True)
-            layers['MaxPool_{}'.format(i)] = MaxPool2dSequence(kernel_size=self.pool_kernel_size[i],
-                                                               padding=1)
+            layers['MaxPool_{}'.format(i)] = MaxPool2dSequence(kernel_size=self.pool_kernel_size[i])
 
         self.layers = nn.Sequential(layers)
 
