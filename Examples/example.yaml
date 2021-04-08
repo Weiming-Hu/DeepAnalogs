@@ -189,6 +189,11 @@ model:
     # Height of the spatial mask
     spatial_mask_height: 5
 
+    # Whether to add a fully connected layer at the end
+    # Currently only works with ConvLSTM
+    #
+    linear_layer_last: True
+
 ################################
 # Section: Training parameters #
 ################################

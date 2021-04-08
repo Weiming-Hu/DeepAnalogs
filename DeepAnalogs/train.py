@@ -294,7 +294,8 @@ def main():
             output_features=args['model']['lstm_output'],
             dropout=args['model']['dropout'],
             scaler=scaler,
-            subset_variables_index=args['data']['fcst_variables'])
+            subset_variables_index=args['data']['fcst_variables'],
+            fc_last=args['model']['linear_layer_last'])
 
     else:
         raise Exception('Unknown network type {}'.format(network_type))

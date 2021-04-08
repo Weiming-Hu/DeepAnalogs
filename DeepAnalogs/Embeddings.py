@@ -79,14 +79,15 @@ class EmbeddingLSTM(nn.Module):
 
 class EmbeddingConvLSTM(nn.Module):
     def __init__(self, input_width, input_height, input_features, hidden_features, hidden_layers,
-                 conv_kernel_size, pool_kernel_size, output_features, dropout=0.0, scaler=None,
-                 subset_variables_index=None):
+                 conv_kernel_size, pool_kernel_size, output_features,
+                 dropout=0.0, scaler=None, subset_variables_index=None, fc_last=True):
         super().__init__()
 
         self.scaler = scaler
         self.embedding_type = 2
         self.input_width = input_width
         self.input_height = input_height
+        self.fc_last = fc_last
 
         if subset_variables_index is None:
             self.subset_variables_index = None
@@ -107,8 +108,13 @@ class EmbeddingConvLSTM(nn.Module):
         n_grids = shape_after_conv[0] * shape_after_conv[1]
         assert n_grids > 0, 'ConvLSTM produces 0 length output! Check your network hyperparameters!'
 
-        # Use all grids left after convolution as input variables
-        self.fc = nn.Linear(in_features=hidden_features*n_grids, out_features=output_features)
+        if self.fc_last:
+            # Use all grids left after convolution as input variables
+            self.fc = nn.Linear(in_features=hidden_features * n_grids, out_features=output_features)
+
+        else:
+            assert hidden_features == output_features, \
+                'Hidden and output features shoudl be the same when no fully connected layers at the end'
 
     def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
         # Input x dimensions are [samples, features, height, width, lead times]
@@ -140,7 +146,8 @@ class EmbeddingConvLSTM(nn.Module):
         # Select the last timestamp and flatten all grids left in the spatial domain to be 1-dimensional
         output = output.select(1, -1).flatten(1, 3)
 
-        output = self.fc(output)
+        if self.fc_last:
+            output = self.fc(output)
 
         # Output dimensions [samples, latent features]
         return output
