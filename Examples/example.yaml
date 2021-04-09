@@ -193,7 +193,7 @@ model:
     spatial_mask_height: 5
 
     # The hidden layer types for ConvLSTM
-    # Can be 'conv_lstm' or 'conv'
+    # Can be 'conv_lstm', 'conv', or `lstm`
     # Example: conv_lstm for all Convolutional LSTM or ['conv', 'conv', 'conv_lstm'] to specify different structures
     #
     hidden_layer_types: 'conv_lstm'

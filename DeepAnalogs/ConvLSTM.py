@@ -146,6 +146,13 @@ class ConvLSTM(nn.Module):
                 sub_layers['Dropout2d'] = nn.Dropout2d(p=self.dropout[i], inplace=True)
                 sub_layers['MaxPool2d'] = nn.MaxPool2d(kernel_size=self.pool_kernel_size[i])
 
+            elif self.layer_types[i] == 'lstm':
+                sub_layers['LSTM'] = nn.LSTM(input_size=cur_input_dim,
+                                             hidden_size=self.hidden_features[i],
+                                             num_layers=1,
+                                             batch_first=True,
+                                             dropout=self.dropout[i])
+
             else:
                 raise Exception('Unknown layer type: {}'.format(self.layer_types[i]))
 
@@ -167,11 +174,16 @@ class ConvLSTM(nn.Module):
 
             if layer_type == 'conv':
                 x = x.reshape(B * T, C, H, W)
+            elif layer_type == 'lstm':
+                # (b, t, c, h, w) -> (b, h, w, t, c) -> (b * h * w, t, c)
+                x = x.permute(0, 3, 4, 1, 2).reshape(B * H * W, T, C)
 
             x = layer(x)
 
             if layer_type == 'conv':
                 x = x.reshape(B, T, x.shape[1], x.shape[2], x.shape[3])
+            elif layer_type == 'lstm':
+                x = x.reshape(B, H, W, T, x.shape[2]).permute(0, 3, 4, 1, 2)
 
         return x
 
