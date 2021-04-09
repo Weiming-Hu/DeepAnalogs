@@ -141,7 +141,7 @@ class ConvLSTM(nn.Module):
                                                  padding=1, stride=1)
 
                 sub_layers['BatchNorm2d'] = nn.BatchNorm2d(self.hidden_features[i])
-                sub_layers['LeakyReLU'] = nn.LeakyReLU(inplace=True)
+                sub_layers['LeakyReLU'] = nn.LeakyReLU()
 
                 sub_layers['Dropout2d'] = nn.Dropout2d(p=self.dropout[i], inplace=True)
                 sub_layers['MaxPool2d'] = nn.MaxPool2d(kernel_size=self.pool_kernel_size[i])
@@ -153,27 +153,27 @@ class ConvLSTM(nn.Module):
 
         self.layers = nn.Sequential(self.layers)
 
-    def forward(self, inputs):
+    def forward(self, x):
         """
-        :param inputs: 5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
+        :param x: 5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
         """
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
-            inputs = inputs.permute(1, 0, 2, 3, 4)
+            x = x.permute(1, 0, 2, 3, 4)
 
         for layer_type, layer in zip(self.layer_types, self.layers):
-            B, T, C, H, W = inputs.shape
+            B, T, C, H, W = x.shape
 
             if layer_type == 'conv':
-                inputs = inputs.reshape(B * T, C, H, W)
+                x = x.reshape(B * T, C, H, W)
 
-            outputs = layer(inputs)
+            x = layer(x)
 
             if layer_type == 'conv':
-                outputs = outputs.reshape(B, T, outputs.shape[1], outputs.shape[2], outputs.shape[3])
+                x = x.reshape(B, T, x.shape[1], x.shape[2], x.shape[3])
 
-        return outputs
+        return x
 
     @staticmethod
     def _extend_for_multilayer(param, num_layers: int):
