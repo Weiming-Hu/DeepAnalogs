@@ -214,10 +214,9 @@ def main():
         print(dataset)
 
         # Save samples
-        sample_file = '{}/samples.pkl'.format(args['io']['out'])
-        print('\nSaving samples to {} ...'.format(sample_file))
-        dataset.save_samples(sample_file)
-        print('Samples have been saved to {}!\n'.format(sample_file))
+        print('\nSaving AnEnDataset [samples, forecasts, sorted_members] ...')
+        dataset.save(args['io']['out'])
+        print('AnEnDataset has been saved to {}!\n'.format(args['io']['out']))
 
         # These variables have been pointed internally.
         # To ensure no unexpected changes to these, I remove the outer pointers from the global environment

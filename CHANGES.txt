@@ -1,4 +1,4 @@
-# DeepAnalogs 0.2.6
+# DeepAnalogs 0.2.7
 
 - Added `AnEnDatasetSpatial`
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
@@ -6,6 +6,7 @@
 - Moved lead time checked from `__get_item__` to initialization in `AnEnDataset` and the derived classes
 - Changed `--dropout-lstm` to `--dropout`
 - Moved from command line options to YAML configuration
+- `AnEnDataset` can be saved to multiple files
 
 # DeepAnalogs 0.1.4
 

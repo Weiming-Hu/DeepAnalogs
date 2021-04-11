@@ -18,6 +18,7 @@ import glob
 import torch
 import pickle
 import random
+import warnings
 import itertools
 
 import numpy as np
@@ -151,9 +152,22 @@ class AnEnDataset(Dataset):
                     # Update the progress bar
                     pbar.update(1)
 
+    def save(self, dirname):
+        self.save_samples('{}/samples.pkl'.format(dirname))
+        self.save_forecasts('{}/forecasts.pkl'.format(dirname))
+        self.save_sorted_members('{}/sorted_members.pkl'.format(dirname))
+
     def save_samples(self, filename):
         with open(filename, 'wb') as f:
             pickle.dump(self.samples, f)
+
+    def save_forecasts(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.forecasts, f)
+
+    def save_sorted_members(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.sorted_members, f)
 
     def _select_sequential(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         """
@@ -192,6 +206,9 @@ class AnEnDataset(Dataset):
 
         # Get the distance for all negative entries
         distance = self.sorted_members['distance'][station_index, anchor_index, lead_time_index, self.num_analogs:]
+        if all(np.isnan(distance)):
+            warnings.warn('All NANs found sorted_members["distance"][{}, {}, {}, {}:]'.format(station_index, anchor_index, lead_time_index, self.num_analogs))
+            return
 
         # Inverse distances
         distance_inverse = bn.nansum(distance) - distance

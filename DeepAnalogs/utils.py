@@ -291,6 +291,8 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
                     sorted_members['value'][:, station_index, anchor_time_index, lead_time_index, :] = \
                         arr[:, station_index, sorted_indices, lead_time_index]
 
+    sorted_members['aligned_obs_norm'] = arr_norm
+
     return sorted_members
 
 
@@ -328,7 +330,8 @@ def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_wei
         'anchor_times_index': np.concatenate([element['anchor_times_index']
                                               for element in sorted_members_list], axis=0).tolist(),
         'search_times_index': sorted_members_list[0]['search_times_index'],
-        'aligned_obs': sorted_members_list[0]['aligned_obs']
+        'aligned_obs': sorted_members_list[0]['aligned_obs'],
+        'aligned_obs_norm': sorted_members_list[0]['aligned_obs_norm'],
     }
 
     if return_values:
