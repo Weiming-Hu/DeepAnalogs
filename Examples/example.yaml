@@ -138,6 +138,9 @@ data:
     #
     matching_forecast_station: '*** Required when Dataset class is AnEnDatasetOneToMany ***'
 
+    # Whether to use `sequential` to generate the test dataset
+    test_complete_sequence: False
+
 
 #############################
 # Section: Model parameters #

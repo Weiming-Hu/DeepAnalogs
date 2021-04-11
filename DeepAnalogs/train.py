@@ -199,18 +199,19 @@ def main():
             dataset_kwargs['obs_y'] = observations['Ys']
             dataset_kwargs['metric_width'] = args['model']['spatial_mask_width']
             dataset_kwargs['metric_height'] = args['model']['spatial_mask_height']
-            dataset = AnEnDatasetSpatial(**dataset_kwargs)
+            dataset_class = AnEnDatasetSpatial
 
         else:
             if args['data']['dataset_class'] == 'AnEnDatasetWithTimeWindow':
-                dataset = AnEnDatasetWithTimeWindow(**dataset_kwargs)
+                dataset_class = AnEnDatasetWithTimeWindow
 
             elif args['data']['dataset_class'] == 'AnEnDatasetOneToMany':
                 dataset_kwargs['matching_forecast_station'] = args['data']['matching_forecast_station']
-                dataset = AnEnDatasetOneToMany(**dataset_kwargs)
+                dataset_class = AnEnDatasetOneToMany
             else:
                 raise Exception('Unknown dataset class {} for LSTM'.format(args['data']['dataset_class']))
 
+        dataset = dataset_class(**dataset_kwargs)
         print(dataset)
 
         # Save samples
@@ -237,7 +238,15 @@ def main():
 
         # Split the dataset based on the indices
         train_dataset = torch.utils.data.Subset(dataset, train_indices)
-        test_dataset = torch.utils.data.Subset(dataset, test_indices)
+
+        # Create the complete test if enabled
+        if args['data']['test_complete_sequence']:
+            dataset_kwargs['triplet_sample_method'] = 'sequential'
+            dataset_kwargs['triplet_sample_prob'] = 1
+            dataset_test = dataset_class(**dataset_kwargs)
+            test_dataset = torch.utils.data.Subset(dataset_test, test_indices)
+        else:
+            test_dataset = torch.utils.data.Subset(dataset, test_indices)
 
         print('{} samples in the training. {} samples in the testing.'.format(len(train_dataset), len(test_dataset)))
         assert len(train_dataset) > 0 and len(test_dataset) > 0, 'Train/Test datasets cannot be empty!'
