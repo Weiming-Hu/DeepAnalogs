@@ -35,14 +35,80 @@ def read_yaml(file):
     return args
 
 
-def validate_args(args):
+def add_default_values(args):
+    if 'fcst_variables' not in args['data']:
+        args['data']['fcst_variables'] = None
+    if 'obs_weights' not in args['data']:
+        args['data']['obs_weights'] = None
+    if 'positive_index' not in args['data']:
+        args['data']['positive_index'] = None
+    if 'triplet_sample_prob' not in args['data']:
+        args['data']['triplet_sample_prob'] = 1.0
+    if 'dataset_margin' not in args['data']:
+        args['data']['dataset_margin'] = np.nan
+    if 'obs_stations_index' not in args['data']:
+        args['data']['obs_stations_index'] = None
+    if 'fcst_stations_index' not in args['data']:
+        args['data']['fcst_stations_index'] = None
+    if 'preprocess_workers' not in args['data']:
+        args['data']['preprocess_workers'] = os.cpu_count()
+    if 'intermediate_file' not in args['data']:
+        args['data']['intermediate_file'] = ''
+    if 'julian_weight' not in args['data']:
+        args['data']['julian_weight'] = 0.0
+    if 'dataset_class' not in args['data']:
+        args['data']['dataset_class'] = 'AnEnDatasetWithTimeWindow'
+    if 'test_complete_sequence' not in args['data']:
+        args['data']['test_complete_sequence'] = False
 
+    if 'use_conv_lstm' not in args['model']:
+        args['model']['use_conv_lstm'] = False
+    if 'conv_kernel' not in args['model']:
+        args['model']['conv_kernel'] = 3
+    if 'pool_kernel' not in args['model']:
+        args['model']['pool_kernel'] = 2
+    if 'forecast_grid_file' not in args['model']:
+        args['model']['forecast_grid_file'] = 'Not specified'
+    if 'spatial_mask_width' not in args['model']:
+        args['model']['spatial_mask_width'] = 5
+    if 'spatial_mask_height' not in args['model']:
+        args['model']['spatial_mask_height'] = 5
+    if 'hidden_layer_types' not in args['model']:
+        args['model']['hidden_layer_types'] = 'conv_lstm'
+
+    if 'optimizer' not in args['train']:
+        args['train']['optimizer'] = 'Adam'
+    if 'lr_decay' not in args['train']:
+        args['train']['lr_decay'] = 0
+    if 'scaler_type' not in args['train']:
+        args['train']['scaler_type'] = 'MinMaxScaler'
+    if 'train_loaders' not in args['train']:
+        args['train']['train_loaders'] = os.cpu_count()
+    if 'test_loaders' not in args['train']:
+        args['train']['test_loaders'] = os.cpu_count()
+    if 'use_cpu' not in args['train']:
+        args['train']['use_cpu'] = False
+    if 'train_margin' not in args['train']:
+        args['train']['train_margin'] = 0.9
+    if 'use_amsgrad' not in args['train']:
+        args['train']['use_amsgrad'] = False
+    if 'wdecay' not in args['train']:
+        args['train']['wdecay'] = 0
+    if 'momentum' not in args['train']:
+        args['train']['momentum'] = 0
+
+    return args
+
+
+def validate_args(args):
     # Check groups
     expected_groups = ['io', 'data', 'model', 'train']
 
     assert len(args.keys()) == len(expected_groups) and \
            all([k in expected_groups for k in args.keys()]), \
         'Allowed argument groups: {}'.format(expected_groups)
+
+    args = add_default_values(args)
 
     # General check
     err_msg = []
@@ -176,7 +242,7 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
 
     assert len(anchor_times) == len(set(anchor_times)), 'Anchor times must not have duplicates!'
     assert max(anchor_times) <= arr.shape[2], 'Anchor time index out of bound!'
-    
+
     assert julian_weight >= 0
     if julian_weight > 0:
         anchor_julians = [int(forecast_times[i].strftime('%j')) for i in anchor_times]
@@ -223,21 +289,21 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
     # Normalization
     if scaler_type == 'MinMaxScaler':
         scaler = preprocessing.MinMaxScaler()
-        
+
         if julian_weight > 0:
             julian_max = np.max((np.max(anchor_julians), np.max(search_julians)))
             anchor_julians /= julian_max
             search_julians /= julian_max
-        
+
     elif scaler_type == 'StandardScaler':
         scaler = preprocessing.StandardScaler()
-        
+
         if julian_weight > 0:
             julian_mean = np.mean((anchor_julians, search_julians))
             julian_std = np.std((anchor_julians, search_julians))
             anchor_julians = (anchor_julians - julian_mean) / julian_std
             search_julians = (search_julians - julian_mean) / julian_std
-        
+
     else:
         raise Exception('Unknown scaler type {}'.format(scaler_type))
 
@@ -272,7 +338,7 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
                         distances[search_time_index] = np.nan
                     else:
                         distances[search_time_index] = bn.nanmean(np.abs(difference) * parameter_weights)
-                        
+
                         if julian_weight > 0:
                             distances[search_time_index] += julian_weight * np.abs(anchor_julians[anchor_time_index] -
                                                                                    search_julians[search_time_index])
@@ -320,7 +386,7 @@ def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_wei
     # Run the algorithm in parallel
     print('Sorting observations in parallel ...')
     sorted_members_list = process_map(wrapper, anchor_times, max_workers=max_workers, leave=True,
-                                      chunksize=math.ceil(len(anchor_times)/max_workers/10))
+                                      chunksize=math.ceil(len(anchor_times) / max_workers / 10))
 
     # Combine list members into a big dictionary
     print('Collect results from multiple processes ...')
