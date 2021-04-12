@@ -206,8 +206,16 @@ model:
 ################################
 
 train:
+    # The optimizer to use
+    # Can be one of Adam, AdamW, or RMSprop
+    #
+    optimizer: Adam
+
     # Learning rate
     lr: 0.001
+
+    # Learning rate decay if the optimizer supports this
+    lr_decay: 0
 
     # Batch size during training
     train_batch: 32
@@ -235,13 +243,12 @@ train:
     # Triplet loss margin during training
     train_margin: 0.9
 
-    # The optimizer to use
-    # Can be one of Adam, AdamW, or RMSprop
-    #
-    optimizer: Adam
-
-    # Whether to use amsgrad during training when Adam and the variates are used
+    # Whether to use amsgrad during training if the optimizer supports this
     use_amsgrad: False
 
-    # Weigth decay
+    # Weigth decay if the optimizer supports this
     wdecay: 0.001
+
+    # Momentum if the optimizer supports this
+    momentum: 0
+

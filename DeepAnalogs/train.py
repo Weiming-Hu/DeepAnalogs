@@ -335,10 +335,19 @@ def main():
             amsgrad=args['train']['use_amsgrad'],
             weight_decay=args['train']['wdecay'])
 
+    elif args['train']['optimizer'] == 'Adagrad':
+        optimizer = torch.optim.Adagrad(
+            embedding_net.parameters(),
+            lr=args['train']['lr'],
+            lr_decay=args['train']['lr_decay'],
+            weight_decay=args['train']['wdecay'])
+
     elif args['train']['optimizer'] == 'RMSprop':
         optimizer = torch.optim.RMSprop(
             embedding_net.parameters(),
-            lr=args['train']['lr'])
+            lr=args['train']['lr'],
+            weight_decay=args['train']['wdecay'],
+            momentum=args['train']['momentum'])
 
     else:
         raise Exception('Unknown optimizer {}'.format(args['train']['optimizer']))
@@ -389,8 +398,11 @@ def main():
                 test_losses['max'].append(np.max(test_batch_losses))
                 test_losses['min'].append(np.min(test_batch_losses))
                 
-            print('Epoch {}/{} with index {}: train loss mean: {:.4f}; validate loss: {:.4f}'.format(
-                epoch + 1, args['train']['epochs'], epoch, train_losses['mean'][-1], test_losses['mean'][-1]))
+            print('Epoch {}/{}: learning rate: {:.4f}; train loss mean: {:.4f}; validate loss: {:.4f}'.format(
+                epoch + 1, args['train']['epochs'],
+                optimizer.param_groups[0]['lr'],
+                train_losses['mean'][-1],
+                test_losses['mean'][-1]))
 
             # Model saving
             embedding_net.to(torch.device('cpu'))
