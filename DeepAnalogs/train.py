@@ -398,11 +398,8 @@ def main():
                 test_losses['max'].append(np.max(test_batch_losses))
                 test_losses['min'].append(np.min(test_batch_losses))
                 
-            print('Epoch {}/{}: learning rate: {:.4f}; train loss mean: {:.4f}; validate loss: {:.4f}'.format(
-                epoch + 1, args['train']['epochs'],
-                optimizer.param_groups[0]['lr'],
-                train_losses['mean'][-1],
-                test_losses['mean'][-1]))
+            print('Epoch {}/{}: train loss mean: {:.4f}; validate loss: {:.4f}'.format(
+                epoch + 1, args['train']['epochs'], train_losses['mean'][-1], test_losses['mean'][-1]))
 
             # Model saving
             embedding_net.to(torch.device('cpu'))
