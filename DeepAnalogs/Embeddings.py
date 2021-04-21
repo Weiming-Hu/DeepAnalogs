@@ -135,7 +135,7 @@ class EmbeddingConvLSTM(nn.Module):
 
         if add_cpp_routines.item():
 
-            if not self.subset_variables_index is None:
+            if self.subset_variables_index is not None:
                 x = torch.index_select(x, 1, self.subset_variables_index)
 
             # The scaler takes shapes of [features, *, *, *].
@@ -160,3 +160,47 @@ class EmbeddingConvLSTM(nn.Module):
 
         # Output dimensions [samples, latent features]
         return output
+
+
+class EmbeddingNaiveSpatialMask(nn.Module):
+    def __init__(self, input_width, input_height, scaler=None, subset_variables_index=None):
+        super().__init__()
+
+        self.scaler = scaler
+        self.embedding_type = 2
+        self.input_width = input_width
+        self.input_height = input_height
+
+        if subset_variables_index is None:
+            self.subset_variables_index = None
+        else:
+            self.subset_variables_index = torch.tensor(subset_variables_index, dtype=torch.long)
+
+    def forward(self, x, add_cpp_routines=torch.full((1,), False, dtype=torch.bool)):
+        # Input x dimensions are [samples, features, height, width, lead times]
+        assert x.shape[2] == self.input_height, "Expect height of {}, got {}".format(self.input_height)
+        assert x.shape[3] == self.input_width, "Expect width of {}, got {}".format(self.input_width)
+
+        # Sanity check
+        assert len(x.shape) == 5, '5-dimensional input is expected [samples, features, height, width, lead times]'
+
+        if add_cpp_routines.item():
+
+            if self.subset_variables_index is not None:
+                x = torch.index_select(x, 1, self.subset_variables_index)
+
+            # The scaler takes shapes of [features, *, *, *].
+            # Therefore, I need to fix the dimensions.
+            #
+            B, C, H, W, S = x.shape
+            x = x.transpose(0, 1).flatten(2, 3)
+            x = self.scaler.transform(x)
+            x = x.reshape(C, B, H, W, S).transpose(0, 1)
+
+        # Calculate average across lead times
+        x = x.mean(axis=4)
+
+        # Shovel everything else as features
+        x = x.reshape(x.shape[0], -1)
+
+        return x

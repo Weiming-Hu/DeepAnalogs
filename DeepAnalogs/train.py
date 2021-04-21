@@ -29,8 +29,8 @@ from datetime import datetime
 
 from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
-from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM
 from DeepAnalogs.utils import sort_distance_mc, summary_pytorch, read_yaml, validate_args
+from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM, EmbeddingNaiveSpatialMask
 from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnDatasetOneToMany, AnEnDatasetSpatial
 
 # Set seeds for reproducibility
@@ -104,6 +104,10 @@ def main():
     # Decide the type of network to train
     if args['model']['use_conv_lstm']:
         network_type = 'ConvLSTM'
+
+        if args['model']['use_naive']:
+            network_type = 'NaiveSpatialMask'
+
     else:
         network_type = 'LSTM'
 
@@ -193,7 +197,7 @@ def main():
             'fitness_num_negative': args['data']['fitness_num_negative'],
         }
 
-        if network_type == 'ConvLSTM':
+        if network_type == 'ConvLSTM' or network_type == 'NaiveSpatialMask':
             dataset_kwargs['forecast_grid_file'] = args['model']['forecast_grid_file']
             dataset_kwargs['obs_x'] = observations['Xs']
             dataset_kwargs['obs_y'] = observations['Ys']
@@ -306,6 +310,13 @@ def main():
             scaler=scaler,
             subset_variables_index=args['data']['fcst_variables'],
             fc_last=args['model']['linear_layer_last'])
+
+    elif network_type == 'NaiveSpatialMask':
+        embedding_net = EmbeddingNaiveSpatialMask(
+            input_width = args['model']['spatial_mask_width'],
+            input_height = args['model']['spatial_mask_height'],
+            scaler=scaler,
+            subset_variables_index=args['data']['fcst_variables'])
 
     else:
         raise Exception('Unknown network type {}'.format(network_type))

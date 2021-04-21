@@ -75,6 +75,8 @@ def add_default_values(args):
         args['model']['spatial_mask_height'] = 5
     if 'hidden_layer_types' not in args['model']:
         args['model']['hidden_layer_types'] = 'conv_lstm'
+    if 'use_naive' not in args['model']:
+        args['model']['use_naive'] = False
 
     if 'optimizer' not in args['train']:
         args['train']['optimizer'] = 'Adam'
