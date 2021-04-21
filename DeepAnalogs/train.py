@@ -315,8 +315,18 @@ def main():
         embedding_net = EmbeddingNaiveSpatialMask(
             input_width = args['model']['spatial_mask_width'],
             input_height = args['model']['spatial_mask_height'],
+            range_step=args['model']['range_step'],
             scaler=scaler,
             subset_variables_index=args['data']['fcst_variables'])
+
+        print('Naive spatial mask does not have neural networks. No trainig needed.')
+        print('Saving the embedding model ...')
+
+        embedding_net.to(torch.device('cpu'))
+
+        torch.jit.script(embedding_net).save("{}/embedding_epoch-{:05d}.pt".format(
+            os.path.expanduser(args['io']['out']), 0))
+        return
 
     else:
         raise Exception('Unknown network type {}'.format(network_type))

@@ -180,6 +180,9 @@ model:
     #
     use_naive: False
 
+    # When using naive spatial masks, this step can be used to shrink the size of input masks
+    range_step: 1
+
     # The kernel size for ConvLSTM layers
     # If multiple layers exist and only one kernel size is provided,
     # all layers will have the same kernel size as specified.

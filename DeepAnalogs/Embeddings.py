@@ -163,13 +163,14 @@ class EmbeddingConvLSTM(nn.Module):
 
 
 class EmbeddingNaiveSpatialMask(nn.Module):
-    def __init__(self, input_width, input_height, scaler=None, subset_variables_index=None):
+    def __init__(self, input_width, input_height, range_step=1, scaler=None, subset_variables_index=None):
         super().__init__()
 
         self.scaler = scaler
         self.embedding_type = 2
         self.input_width = input_width
         self.input_height = input_height
+        self.range_step = range_step
 
         if subset_variables_index is None:
             self.subset_variables_index = None
@@ -198,9 +199,9 @@ class EmbeddingNaiveSpatialMask(nn.Module):
             x = x.reshape(C, B, H, W, S).transpose(0, 1)
 
         # Calculate average across lead times
-        x = x.mean(axis=4)
+        x = x.mean(dim=4)
 
         # Shovel everything else as features
-        x = x.reshape(x.shape[0], -1)
+        x = x[:, :, ::self.range_step, ::self.range_step].reshape(x.shape[0], -1)
 
         return x

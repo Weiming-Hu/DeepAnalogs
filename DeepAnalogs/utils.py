@@ -77,6 +77,8 @@ def add_default_values(args):
         args['model']['hidden_layer_types'] = 'conv_lstm'
     if 'use_naive' not in args['model']:
         args['model']['use_naive'] = False
+    if 'range_step' not in args['model']:
+        args['model']['range_step'] = 1
 
     if 'optimizer' not in args['train']:
         args['train']['optimizer'] = 'Adam'

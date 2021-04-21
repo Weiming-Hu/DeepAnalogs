@@ -1,8 +1,8 @@
-# DeepAnalogs 0.2.8
+# DeepAnalogs 0.2.9
 
 - Added `AnEnDatasetSpatial`
 - Added more optimizer options
-- Added training with Convolutional LSTM embeddings
+- Added training with Convolutional LSTM embeddings and naive spatial masks
 - Added more members to save from `AnEnDataset` and the derived classes
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
 - Moved from command line options to YAML configuration
