@@ -1,4 +1,4 @@
-# DeepAnalogs 0.2.9
+# DeepAnalogs 0.2.10
 
 - Added `AnEnDatasetSpatial`
 - Added more optimizer options
