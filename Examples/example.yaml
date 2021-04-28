@@ -64,6 +64,11 @@ io:
     #
     search_end: __REQUIRED__
 
+    # Whether to also save the trained model as pure python module
+    # This won't affect the saving of a C++ module.
+    #
+    save_as_pure_python_module: False
+
 ############################
 # Section: Data parameters #
 ############################

@@ -36,6 +36,9 @@ def read_yaml(file):
 
 
 def add_default_values(args):
+    if 'save_as_pure_python_module' not in args['io']:
+        args['io']['save_as_pure_python_module'] = False
+    
     if 'fcst_variables' not in args['data']:
         args['data']['fcst_variables'] = None
     if 'obs_weights' not in args['data']:

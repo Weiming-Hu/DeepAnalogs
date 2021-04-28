@@ -426,6 +426,9 @@ def main():
             embedding_net.to(torch.device('cpu'))
             torch.jit.script(embedding_net).save("{}/embedding_epoch-{:05d}.pt".format(
                 os.path.expanduser(args['io']['out']), epoch + 1))
+            if args['io']['save_as_pure_python_module']:
+                torch.save(embedding_net, "{}/embedding_epoch-{:05d}_py.pt".format(
+                    os.path.expanduser(args['io']['out']), epoch + 1))
             embedding_net.to(device)
 
     except KeyboardInterrupt:

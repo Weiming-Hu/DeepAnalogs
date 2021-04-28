@@ -2,6 +2,7 @@
 
 - Added `AnEnDatasetSpatial`
 - Added more optimizer options
+- Models can now be saved as pure python modules
 - Added training with Convolutional LSTM embeddings and naive spatial masks
 - Added more members to save from `AnEnDataset` and the derived classes
 - Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
