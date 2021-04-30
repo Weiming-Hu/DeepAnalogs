@@ -97,28 +97,43 @@ class ConvLSTMCell(nn.Module):
 
 
 class ConvLSTM(nn.Module):
-    def __init__(self, input_features, hidden_features, num_layers,
-                 layer_types='conv_lstm', conv_kernel_size=3, pool_kernel_size=2, dropout=0.0, batch_first=True):
+    def __init__(self, input_features, hidden_features, num_layers, layer_types='conv_lstm',
+                 conv_kernel=3, conv_padding=1, conv_stride=1,
+                 pool_kernel=2, pool_padding=0, pool_stride=2,
+                 dropout=0.0, batch_first=True):
         super().__init__()
 
-        conv_kernel_size = self._extend_for_multilayer(conv_kernel_size, num_layers)
-        pool_kernel_size = self._extend_for_multilayer(pool_kernel_size, num_layers)
+        conv_kernel = self._extend_for_multilayer(conv_kernel, num_layers)
+        conv_padding = self._extend_for_multilayer(conv_padding, num_layers)
+        conv_stride = self._extend_for_multilayer(conv_stride, num_layers)
+
+        pool_kernel = self._extend_for_multilayer(pool_kernel, num_layers)
+        pool_padding = self._extend_for_multilayer(pool_padding, num_layers)
+        pool_stride = self._extend_for_multilayer(pool_stride, num_layers)
+
         hidden_features = self._extend_for_multilayer(hidden_features, num_layers)
         layer_types = self._extend_for_multilayer(layer_types, num_layers)
         dropout = self._extend_for_multilayer(dropout, num_layers)
 
-        assert len(conv_kernel_size) == len(hidden_features) == len(layer_types) == \
-               len(pool_kernel_size) == len(dropout) == num_layers, \
-            'Length of (conv/pool kernel, dropout, layer type, hidden features) do not match the number of layers'
+        assert len(conv_kernel) == len(conv_kernel) == len(conv_kernel) == \
+               len(pool_kernel) == len(pool_padding) == len(pool_stride) == \
+               len(hidden_features) == len(layer_types) == len(dropout) == num_layers, \
+            'Length of (conv/pool, dropout, layer type, hidden features) do not match the number of layers'
 
+        self.dropout = dropout
         self.input_features = input_features
         self.hidden_features = hidden_features
         self.num_layers = num_layers
-        self.conv_kernel_size = conv_kernel_size
-        self.pool_kernel_size = pool_kernel_size
-        self.dropout = dropout
         self.batch_first = batch_first
         self.layer_types = layer_types
+
+        self.conv_kernel = conv_kernel
+        self.conv_padding = conv_padding
+        self.conv_stride = conv_stride
+
+        self.pool_kernel = pool_kernel
+        self.pool_padding = pool_padding
+        self.pool_stride = pool_stride
 
         self.layers = OrderedDict()
         for i in range(self.num_layers):
@@ -129,22 +144,29 @@ class ConvLSTM(nn.Module):
             if self.layer_types[i] == 'conv_lstm':
                 sub_layers['ConvLSTMCell'] = ConvLSTMCell(input_features=cur_input_dim,
                                                           hidden_features=self.hidden_features[i],
-                                                          kernel_size=self.conv_kernel_size[i])
+                                                          kernel_size=self.conv_kernel[i],
+                                                          padding=self.conv_padding[i],
+                                                          stride=self.conv_stride[i])
 
                 sub_layers['Dropout2d'] = Dropout2dSequence(p=self.dropout[i], inplace=True)
-                sub_layers['MaxPool2d'] = MaxPool2dSequence(kernel_size=self.pool_kernel_size[i])
+                sub_layers['MaxPool2d'] = MaxPool2dSequence(kernel_size=self.pool_kernel[i],
+                                                            padding=self.pool_padding[i],
+                                                            stride=self.pool_stride[i])
 
             elif self.layer_types[i] == 'conv':
                 sub_layers['Conv2d'] = nn.Conv2d(in_channels=cur_input_dim,
                                                  out_channels=self.hidden_features[i],
-                                                 kernel_size=self.conv_kernel_size[i],
-                                                 padding=1, stride=1)
+                                                 kernel_size=self.conv_kernel[i],
+                                                 padding=self.conv_padding[i],
+                                                 stride=self.conv_stride[i])
 
                 sub_layers['BatchNorm2d'] = nn.BatchNorm2d(self.hidden_features[i])
                 sub_layers['LeakyReLU'] = nn.LeakyReLU()
 
                 sub_layers['Dropout2d'] = nn.Dropout2d(p=self.dropout[i], inplace=True)
-                sub_layers['MaxPool2d'] = nn.MaxPool2d(kernel_size=self.pool_kernel_size[i])
+                sub_layers['MaxPool2d'] = nn.MaxPool2d(kernel_size=self.pool_kernel[i],
+                                                       padding=self.pool_padding[i],
+                                                       stride=self.pool_stride[i])
 
             elif self.layer_types[i] == 'lstm':
                 sub_layers['LSTM'] = nn.LSTM(input_size=cur_input_dim,

@@ -188,17 +188,18 @@ model:
     # When using naive spatial masks, this step can be used to shrink the size of input masks
     range_step: 1
 
-    # The kernel size for ConvLSTM layers
+    # The parameters for ConvLSTM layers
     # If multiple layers exist and only one kernel size is provided,
     # all layers will have the same kernel size as specified.
     #
     conv_kernel: [3]
+    conv_padding: [1]
+    conv_stride: [1]
 
-    # The kernel size for MaxPool layers
-    # If multiple layers exist and only one kernel size is provided,
-    # all layers will have the same kernel size as specified.
-    #
+    # The parameters for MaxPool layers
     pool_kernel: [2]
+    pool_padding: [0]
+    pool_stride: [2]
 
     # The grid file for aligning forecast stations
     forecast_grid_file: '*** Required when use_conv_lstm is True ***'

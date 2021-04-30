@@ -68,8 +68,16 @@ def add_default_values(args):
         args['model']['use_conv_lstm'] = False
     if 'conv_kernel' not in args['model']:
         args['model']['conv_kernel'] = 3
+    if 'conv_padding' not in args['model']:
+        args['model']['conv_padding'] = 1
+    if 'conv_stride' not in args['model']:
+        args['model']['conv_stride'] = 1
     if 'pool_kernel' not in args['model']:
         args['model']['pool_kernel'] = 2
+    if 'pool_padding' not in args['model']:
+        args['model']['pool_padding'] = 0
+    if 'pool_stride' not in args['model']:
+        args['model']['pool_stride'] = args['model']['pool_kernel']
     if 'forecast_grid_file' not in args['model']:
         args['model']['forecast_grid_file'] = 'Not specified'
     if 'spatial_mask_width' not in args['model']:

@@ -86,9 +86,11 @@ class EmbeddingLSTM(nn.Module):
 
 
 class EmbeddingConvLSTM(nn.Module):
-    def __init__(self, input_width, input_height, input_features, hidden_features,
-                 hidden_layers, hidden_layer_types, conv_kernel_size, pool_kernel_size, output_features,
-                 dropout=0.0, scaler=None, subset_variables_index=None, fc_last=False):
+    def __init__(self, input_width, input_height, input_features,
+                 hidden_features, hidden_layers, hidden_layer_types,
+                 conv_kernel, conv_padding, conv_stride,
+                 pool_kernel, pool_padding, pool_stride,
+                 output_features, dropout=0.0, scaler=None, subset_variables_index=None, fc_last=False):
         super().__init__()
 
         self.scaler = scaler
@@ -106,8 +108,12 @@ class EmbeddingConvLSTM(nn.Module):
                                   hidden_features=hidden_features,
                                   num_layers=hidden_layers,
                                   layer_types=hidden_layer_types,
-                                  conv_kernel_size=conv_kernel_size,
-                                  pool_kernel_size=pool_kernel_size,
+                                  conv_kernel=conv_kernel,
+                                  conv_padding=conv_padding,
+                                  conv_stride=conv_stride,
+                                  pool_kernel=pool_kernel,
+                                  pool_padding=pool_padding,
+                                  pool_stride=pool_stride,
                                   dropout=dropout)
 
         # Estimate the number of grids after convolution
