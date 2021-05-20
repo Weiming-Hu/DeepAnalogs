@@ -12,8 +12,11 @@
 # This file contains utility functions.
 #
 
+import os
 import gc
 import math
+import yaml
+import time
 import numpy as np
 import bottleneck as bn
 
@@ -22,7 +25,148 @@ from functools import partial
 from bisect import bisect_left
 from sklearn import preprocessing
 from prettytable import PrettyTable
+from datetime import datetime, timezone
 from tqdm.contrib.concurrent import process_map
+
+
+def read_yaml(file):
+    with open(file, 'r') as file:
+        args = yaml.load(file, Loader=yaml.FullLoader)
+    return args
+
+
+def add_default_values(args):
+    if 'save_as_pure_python_module' not in args['io']:
+        args['io']['save_as_pure_python_module'] = False
+    
+    if 'fcst_variables' not in args['data']:
+        args['data']['fcst_variables'] = None
+    if 'obs_weights' not in args['data']:
+        args['data']['obs_weights'] = None
+    if 'positive_index' not in args['data']:
+        args['data']['positive_index'] = None
+    if 'triplet_sample_prob' not in args['data']:
+        args['data']['triplet_sample_prob'] = 1.0
+    if 'dataset_margin' not in args['data']:
+        args['data']['dataset_margin'] = np.nan
+    if 'obs_stations_index' not in args['data']:
+        args['data']['obs_stations_index'] = None
+    if 'fcst_stations_index' not in args['data']:
+        args['data']['fcst_stations_index'] = None
+    if 'preprocess_workers' not in args['data']:
+        args['data']['preprocess_workers'] = os.cpu_count()
+    if 'intermediate_file' not in args['data']:
+        args['data']['intermediate_file'] = ''
+    if 'julian_weight' not in args['data']:
+        args['data']['julian_weight'] = 0.0
+    if 'dataset_class' not in args['data']:
+        args['data']['dataset_class'] = 'AnEnDatasetWithTimeWindow'
+    if 'test_complete_sequence' not in args['data']:
+        args['data']['test_complete_sequence'] = False
+
+    if 'use_conv_lstm' not in args['model']:
+        args['model']['use_conv_lstm'] = False
+    if 'conv_kernel' not in args['model']:
+        args['model']['conv_kernel'] = 3
+    if 'conv_padding' not in args['model']:
+        args['model']['conv_padding'] = 1
+    if 'conv_stride' not in args['model']:
+        args['model']['conv_stride'] = 1
+    if 'pool_kernel' not in args['model']:
+        args['model']['pool_kernel'] = 2
+    if 'pool_padding' not in args['model']:
+        args['model']['pool_padding'] = 0
+    if 'pool_stride' not in args['model']:
+        args['model']['pool_stride'] = args['model']['pool_kernel']
+    if 'forecast_grid_file' not in args['model']:
+        args['model']['forecast_grid_file'] = 'Not specified'
+    if 'spatial_mask_width' not in args['model']:
+        args['model']['spatial_mask_width'] = 5
+    if 'spatial_mask_height' not in args['model']:
+        args['model']['spatial_mask_height'] = 5
+    if 'hidden_layer_types' not in args['model']:
+        args['model']['hidden_layer_types'] = 'conv_lstm'
+    if 'use_naive' not in args['model']:
+        args['model']['use_naive'] = False
+    if 'range_step' not in args['model']:
+        args['model']['range_step'] = 1
+
+    if 'optimizer' not in args['train']:
+        args['train']['optimizer'] = 'Adam'
+    if 'lr_decay' not in args['train']:
+        args['train']['lr_decay'] = 0
+    if 'scaler_type' not in args['train']:
+        args['train']['scaler_type'] = 'MinMaxScaler'
+    if 'train_loaders' not in args['train']:
+        args['train']['train_loaders'] = os.cpu_count()
+    if 'test_loaders' not in args['train']:
+        args['train']['test_loaders'] = os.cpu_count()
+    if 'use_cpu' not in args['train']:
+        args['train']['use_cpu'] = False
+    if 'train_margin' not in args['train']:
+        args['train']['train_margin'] = 0.9
+    if 'use_amsgrad' not in args['train']:
+        args['train']['use_amsgrad'] = False
+    if 'wdecay' not in args['train']:
+        args['train']['wdecay'] = 0
+    if 'momentum' not in args['train']:
+        args['train']['momentum'] = 0
+
+    return args
+
+
+def validate_args(args):
+    # Check groups
+    expected_groups = ['io', 'data', 'model', 'train']
+
+    assert len(args.keys()) == len(expected_groups) and \
+           all([k in expected_groups for k in args.keys()]), \
+        'Allowed argument groups: {}'.format(expected_groups)
+
+    args = add_default_values(args)
+
+    # General check
+    err_msg = []
+    for group in expected_groups:
+        for k, v in args[group].items():
+
+            if v == '__REQUIRED__':
+                err_msg.append('Please provide argument [{}] in the group [{}]!'.format(k, group))
+
+            if v == 'np.nan':
+                args[group][k] = np.nan
+
+            if isinstance(v, str) and len(v) > 0 and v[0] == '~':
+                args[group][k] = os.path.expanduser(args[group][k])
+
+    # Specific check
+    if args['model']['use_conv_lstm']:
+        grid_file = args['model']['forecast_grid_file']
+        if not os.path.exists(grid_file):
+            err_msg.append('Forecast grid not found: {}'.format(grid_file))
+
+    if args['data']['triplet_sample_method'] == 'fitness':
+        num_negative = args['data']['fitness_num_negative']
+        if not isinstance(num_negative, int):
+            err_msg.append('Invalid fitness_num_negative: {}'.format(num_negative))
+
+    if args['data']['dataset_class'] == 'AnEnDatasetOneToMany':
+        matching_station = args['data']['matching_forecast_station']
+        if isinstance(matching_station, int) and matching_station > 0:
+            pass
+        else:
+            err_msg.append('Invalid matching_forecast_station: {}'.format(matching_station))
+
+    if len(err_msg) != 0:
+        err_msg = '\n'.join(err_msg)
+        raise Exception('Failed during argument validation:\n' + err_msg)
+
+    # Change from str to datetime
+    for k in ['split', 'anchor_start', 'anchor_end', 'search_start', 'search_end']:
+        dt = time.strptime(args['io'][k], '%Y/%m/%d %H:%M:%S')
+        args['io'][k] = datetime(*(dt[0:6]), tzinfo=timezone.utc)
+
+    return args
 
 
 def legend_without_duplicate_labels(ax):
@@ -73,8 +217,8 @@ def binary_search(seq, v):
         return -1
 
 
-def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0, forecast_times=None,
-                  disable_pbar=False, tqdm=tqdm, return_values=False, verbose=True):
+def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0,
+                  forecast_times=None, disable_pbar=False, tqdm=tqdm, return_values=False, verbose=True):
     """
     Calculates the dissimilarity (distance) between each of the anchor times and the remaining times at each location.
     This function is capable of finding multi-variate distances by setting the parameter weights. The sorted indices
@@ -113,7 +257,7 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
 
     assert len(anchor_times) == len(set(anchor_times)), 'Anchor times must not have duplicates!'
     assert max(anchor_times) <= arr.shape[2], 'Anchor time index out of bound!'
-    
+
     assert julian_weight >= 0
     if julian_weight > 0:
         anchor_julians = [int(forecast_times[i].strftime('%j')) for i in anchor_times]
@@ -160,21 +304,21 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
     # Normalization
     if scaler_type == 'MinMaxScaler':
         scaler = preprocessing.MinMaxScaler()
-        
+
         if julian_weight > 0:
             julian_max = np.max((np.max(anchor_julians), np.max(search_julians)))
             anchor_julians /= julian_max
             search_julians /= julian_max
-        
+
     elif scaler_type == 'StandardScaler':
         scaler = preprocessing.StandardScaler()
-        
+
         if julian_weight > 0:
             julian_mean = np.mean((anchor_julians, search_julians))
             julian_std = np.std((anchor_julians, search_julians))
             anchor_julians = (anchor_julians - julian_mean) / julian_std
             search_julians = (search_julians - julian_mean) / julian_std
-        
+
     else:
         raise Exception('Unknown scaler type {}'.format(scaler_type))
 
@@ -209,9 +353,10 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
                         distances[search_time_index] = np.nan
                     else:
                         distances[search_time_index] = bn.nanmean(np.abs(difference) * parameter_weights)
-                        
+
                         if julian_weight > 0:
-                            distances[search_time_index] += julian_weight * np.abs(anchor_julians[anchor_time_index] - search_julians[search_time_index])
+                            distances[search_time_index] += julian_weight * np.abs(anchor_julians[anchor_time_index] -
+                                                                                   search_julians[search_time_index])
 
                 # Sort
                 distance_order = np.argsort(distances)
@@ -227,11 +372,13 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
                     sorted_members['value'][:, station_index, anchor_time_index, lead_time_index, :] = \
                         arr[:, station_index, sorted_indices, lead_time_index]
 
+    sorted_members['aligned_obs_norm'] = arr_norm
+
     return sorted_members
 
 
-def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0, forecast_times=None,
-                     disable_pbar=False, return_values=False, max_workers=1):
+def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_weights=None, julian_weight=0,
+                     forecast_times=None, disable_pbar=False, return_values=False, max_workers=1):
     """
     This is simply a wrapper function for sort_distance using parallel processing.
     :param anchor_times: See sort_distance
@@ -254,7 +401,7 @@ def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_wei
     # Run the algorithm in parallel
     print('Sorting observations in parallel ...')
     sorted_members_list = process_map(wrapper, anchor_times, max_workers=max_workers, leave=True,
-                                      chunksize=math.ceil(len(anchor_times)/max_workers/10))
+                                      chunksize=math.ceil(len(anchor_times) / max_workers / 10))
 
     # Combine list members into a big dictionary
     print('Collect results from multiple processes ...')
@@ -264,7 +411,8 @@ def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_wei
         'anchor_times_index': np.concatenate([element['anchor_times_index']
                                               for element in sorted_members_list], axis=0).tolist(),
         'search_times_index': sorted_members_list[0]['search_times_index'],
-        'aligned_obs': sorted_members_list[0]['aligned_obs']
+        'aligned_obs': sorted_members_list[0]['aligned_obs'],
+        'aligned_obs_norm': sorted_members_list[0]['aligned_obs_norm'],
     }
 
     if return_values:
@@ -282,6 +430,7 @@ def summary_pytorch(model):
 
     for name, parameter in model.named_parameters():
         if not parameter.requires_grad: continue
+        if name[:2] == 'fc' and hasattr(model, 'fc_last') and not model.fc_last: continue
         param = parameter.numel()
         table.add_row([name, param])
         total_params += param

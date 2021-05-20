@@ -26,7 +26,7 @@ setuptools.setup(
     ],
     install_requires=[
         'prettytable',
-        'configargparse',
+        'pyyaml',
         'netCDF4',
         'tqdm',
         'bottleneck',

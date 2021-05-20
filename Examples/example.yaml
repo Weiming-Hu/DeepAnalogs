@@ -1,0 +1,269 @@
+# "`-''-/").___..--''"`-._
+#  (`6_ 6  )   `-.  (     ).`-.__.`)   WE ARE ...
+#  (_Y_.)'  ._   )  `._ `. ``-..-'    PENN STATE!
+#    _ ..`--'_..-_/  /--'_.' ,'
+#  (il),-''  (li),'  ((!.-'
+#
+# Author: Weiming Hu <weiming@psu.edu>
+#
+#         Geoinformatics and Earth Observation Laboratory (http://geolab.psu.edu)
+#         Department of Geography and Institute for Computational and Data Sciences
+#         The Pennsylvania State University
+#
+# Date of Creation: 2021/04/08
+#
+# An example of supported arguments.
+# Required options are marked as __REQUIRED__.
+# Otherwise, a default value is provided.
+#
+
+
+##########################
+# Section: IO parameters #
+##########################
+
+io:
+    # Output directory
+    # Example: /home/output
+    #
+    out: __REQUIRED__
+
+    # Input forecast NetCDF file
+    # Example: /home/forecasts.nc
+    #
+    forecast: __REQUIRED__
+
+    # Input observation NetCDF file
+    # Example: /home/observations.nc
+    #
+    observation: __REQUIRED__
+
+    # YYYY/mm/dd HH:MM:DD for the start time of anchors
+    # Example: 2015/02/01 00:00:00
+    #
+    anchor_start: __REQUIRED__
+
+    # YYYY/mm/dd HH:MM:DD for the end time of anchors
+    # Example: 2019/10/31 23:59:59
+    #
+    anchor_end: __REQUIRED__
+
+    # YYYY/mm/dd HH:MM:DD to split the anchor period into train/test.
+    # The split time will be included in the test period.
+    # Example: 2018/01/01 00:00:00
+    #
+    split: __REQUIRED__
+
+    # YYYY/mm/dd HH:MM:DD for the start time of search
+    # Example: 2015/02/01 00:00:00
+    #
+    search_start: __REQUIRED__
+
+    # YYYY/mm/dd HH:MM:DD for the end time of search
+    # Example: 2017/12/31 23:59:59
+    #
+    search_end: __REQUIRED__
+
+    # Whether to also save the trained model as pure python module
+    # This won't affect the saving of a C++ module.
+    #
+    save_as_pure_python_module: False
+
+############################
+# Section: Data parameters #
+############################
+
+data:
+    # The number of analogs
+    # Example: 21
+    #
+    analogs: __REQUIRED__
+
+    # Names or indices of forecast variables to use
+    # Example: [0, 2, 4] or ['temperature', 'wind speed'] or !!null for no subsetting
+    #
+    fcst_variables: !!null
+
+    # Weights for observation variables when calculating the reverse analogs
+    # The default is equal weighting for all observation variables.
+    # Example: [0, 0, 1, 0, 0] or [0.2, 0.2, 0.6] or !!null for the default
+    #
+    obs_weights: !!null
+
+    # The observation variable index that should always be positive
+    # If the variable value is non-positive, it won't be used during training.
+    # Example: 2 or !!null for no restriction
+    positive_index: !!null
+
+    # If the entire dataset is too large, set this probability carry out random sampling.
+    triplet_sample_prob: 1.0
+
+    # The sample method for selecting triplets
+    # Can be one of fitness or sequential
+    #
+    triplet_sample_method: fitness
+
+    # The number of negative cases for each positive case if the fitness sampling method is used
+    # Example: 21
+    #
+    fitness_num_negative: '*** Required when the sampling method is fitness ***'
+
+    # The margin used while creating the triplet dataset
+    dataset_margin: np.nan
+
+    # The station indices to subset after reading observations
+    # Example: [0, 3, 5] or !!null for no subsetting
+    #
+    obs_stations_index: !!null
+
+    # The station indices to subset after reading forecasts
+    # Example: [0, 3, 5] or !!null for no subsetting
+    #
+    fcst_stations_index: !!null
+
+    # The number of CPU to use during data preprocessig
+    preprocess_workers: 4
+
+    # If the file does not exist, a file will be saved with ready-to-train data.
+    # If the file already exists, preprocessed data will be read directly from the file, skipping data preprocessing.
+    #
+    intermediate_file: ''
+
+    # The weight for Julian days when calculating reverse analogs
+    julian_weight: 0.0
+
+    # The Dataset class to use
+    # Can be one of AnEnDatasetOneToMany, AnEnDatasetWithTimeWindow, or AnEnDatasetSpatial
+    # If 'use_conv_lstm' is True, this has to be 'AnEnDatasetSpatial'.
+    #
+    dataset_class: AnEnDatasetWithTimeWindow
+
+    # The index of the forecast station to match the observation station
+    # Only used when the Dataset class is 'AnEnDatasetOneToMany'
+    #
+    matching_forecast_station: '*** Required when Dataset class is AnEnDatasetOneToMany ***'
+
+    # Whether to use `sequential` to generate the test dataset
+    test_complete_sequence: False
+
+
+#############################
+# Section: Model parameters #
+#############################
+
+model:
+    # Dropout rate (a probability) or a list or dropout rates
+    dropout: 0.0
+
+    # Number of embeddings in the final output
+    # Example: 20
+    #
+    lstm_output: __REQUIRED__
+
+    # Number of embeddings in hidden layers
+    # Example: 20
+    #
+    lstm_hidden: 20
+
+    # Number of layers
+    # Example: 2
+    #
+    lstm_layers: 2
+
+    # The radius for constructing a time series centered at each forecast lead time
+    lstm_radius: 1
+
+    # Whether to add a fully connected layer at the end
+    linear_layer_last: False
+
+    # Whether to use ConvLSTM to train a spatial metric
+    use_conv_lstm: False
+
+    # Whether to use naive spatial mask when use_conv_lstm is True.
+    # It has no neural networks embedded.
+    # It simply shovels all variables as features.
+    #
+    use_naive: False
+
+    # When using naive spatial masks, this step can be used to shrink the size of input masks
+    range_step: 1
+
+    # The parameters for ConvLSTM layers
+    # If multiple layers exist and only one kernel size is provided,
+    # all layers will have the same kernel size as specified.
+    #
+    conv_kernel: [3]
+    conv_padding: [1]
+    conv_stride: [1]
+
+    # The parameters for MaxPool layers
+    pool_kernel: [2]
+    pool_padding: [0]
+    pool_stride: [2]
+
+    # The grid file for aligning forecast stations
+    forecast_grid_file: '*** Required when use_conv_lstm is True ***'
+
+    # Width of the spatial mask
+    spatial_mask_width: 5
+
+    # Height of the spatial mask
+    spatial_mask_height: 5
+
+    # The hidden layer types for ConvLSTM
+    # Can be 'conv_lstm', 'conv', or `lstm`
+    # Example: conv_lstm for all Convolutional LSTM or ['conv', 'conv', 'conv_lstm'] to specify different structures
+    #
+    hidden_layer_types: 'conv_lstm'
+
+################################
+# Section: Training parameters #
+################################
+
+train:
+    # The optimizer to use
+    # Can be one of Adam, AdamW, or RMSprop
+    #
+    optimizer: Adam
+
+    # Learning rate
+    lr: 0.001
+
+    # Learning rate decay if the optimizer supports this
+    lr_decay: 0
+
+    # Batch size during training
+    train_batch: 32
+
+    # Batch size during testing
+    test_batch: 32
+
+    # Training epochs
+    epochs: 20
+
+    # The scaling method to use while training the model
+    # Can be one of MinMaxScaler or StandardScaler
+    #
+    scaler_type: MinMaxScaler
+
+    # The number of parallel DataLoader workers during training
+    train_loaders: 4
+
+    # The number of parallel DataLoader workers during testing
+    test_loaders: 4
+
+    # Whether to use CPU for model training
+    use_cpu: False
+
+    # Triplet loss margin during training
+    train_margin: 0.9
+
+    # Whether to use amsgrad during training if the optimizer supports this
+    use_amsgrad: False
+
+    # Weigth decay if the optimizer supports this
+    wdecay: 0.001
+
+    # Momentum if the optimizer supports this
+    momentum: 0
+

@@ -12,9 +12,13 @@
 # This file defines a customized dataset for perfect analogs.
 #
 
+import os
+import sys
+import glob
 import torch
 import pickle
 import random
+import warnings
 import itertools
 
 import numpy as np
@@ -23,6 +27,11 @@ import bottleneck as bn
 from tqdm import tqdm
 from torch.utils.data import Dataset
 from DeepAnalogs.AnEnDict import AnEnDict
+
+# Global variables read from the environment and used when printing
+NROWS = os.getenv('DA_MAX_ROWS') if os.getenv('DA_MAX_ROWS') else 20
+NCOLS = os.getenv('DA_MAX_COLS') if os.getenv('DA_MAX_COLS') else 15
+NSTATIONS = os.getenv('DA_MAX_STATIONS') if os.getenv('DA_MAX_STATIONS') else 50
 
 
 class AnEnDataset(Dataset):
@@ -44,7 +53,7 @@ class AnEnDataset(Dataset):
                  margin=np.nan, positive_predictand_index=None,
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-                 fitness_num_negative=1, add_lead_time_index=False, trans_args=None):
+                 fitness_num_negative=1, add_lead_time_index=False):
         """
         Initialize an AnEnDataset
 
@@ -65,12 +74,11 @@ class AnEnDataset(Dataset):
         negative candidates to select for each positive candidate. The selection will be sampling without replacement
         to ensure that a particular negative candidate is only selected once for a particular positive candidate.
         :param add_lead_time_index: Whether to add lead time index in the results of __get_item__
-        :param trans_args Arguments as a dictionary for the transformation in fitness selection
         """
 
         # Sanity checks
         assert isinstance(forecasts, AnEnDict), 'Forecasts must be an object of AnEnDict!'
-        assert isinstance(sorted_members, dict), 'Sorted members must be an object of dictionary!'
+        assert isinstance(sorted_members, dict), 'Sorted members must be adictionary!'
 
         expected_dict_keys = ['index', 'distance', 'anchor_times_index', 'search_times_index']
         assert all([key in sorted_members.keys() for key in expected_dict_keys]), \
@@ -113,22 +121,6 @@ class AnEnDataset(Dataset):
         self.positive_sample_times = []
         self.negative_sample_times = []
 
-        # Decide the transformation function
-        self.trans_args = trans_args
-
-        if self.trans_args is None:
-            self.trans_func = None
-        else:
-            assert isinstance(trans_args, dict), 'Transformation arguments must be a dictionary! Got {}'.format(type(trans_args))
-
-            if self.trans_args['method'] == 'exponential':
-                for k in ['a', 'b', 'c']:
-                    self.trans_args[k] = float(self.trans_args[k])
-
-                self.trans_func = AnEnDataset._transform_exponential
-            else:
-                raise Exception('No supported type: {}'.format(self.trans_args['method']))
-
         # Create index samples
         #
         # Each sample is a length-of-5 list containing the following information:
@@ -160,9 +152,22 @@ class AnEnDataset(Dataset):
                     # Update the progress bar
                     pbar.update(1)
 
+    def save(self, dirname):
+        self.save_samples('{}/samples.pkl'.format(dirname))
+        self.save_forecasts('{}/forecasts.pkl'.format(dirname))
+        self.save_sorted_members('{}/sorted_members.pkl'.format(dirname))
+
     def save_samples(self, filename):
         with open(filename, 'wb') as f:
             pickle.dump(self.samples, f)
+
+    def save_forecasts(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.forecasts, f)
+
+    def save_sorted_members(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.sorted_members, f)
 
     def _select_sequential(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         """
@@ -201,15 +206,15 @@ class AnEnDataset(Dataset):
 
         # Get the distance for all negative entries
         distance = self.sorted_members['distance'][station_index, anchor_index, lead_time_index, self.num_analogs:]
+        if all(np.isnan(distance)):
+            warnings.warn('All NANs found sorted_members["distance"][{}, {}, {}, {}:]'.format(station_index, anchor_index, lead_time_index, self.num_analogs))
+            return
 
         # Inverse distances
         distance_inverse = bn.nansum(distance) - distance
 
         # Replace NAN with 0
         distance_inverse[np.isnan(distance_inverse)] = 0
-
-        if self.trans_func is not None:
-            distance_inverse = self.trans_func(distance_inverse, **self.trans_args)
 
         for analog_index in range(self.num_analogs):
             positive_candidate_index = analog_index
@@ -360,22 +365,6 @@ class AnEnDataset(Dataset):
 
         return ret
 
-    @staticmethod
-    def _transform_exponential(y, a, b, c, method):
-        """
-        Multiply the input `y` with a exponential distribution transformation. The exponential distribution function
-        is as follows:
-            y_multiplier = a * np.exp(-b * x), where x is the rank of y normalized to `[0, c]`.
-        """
-        # An example:
-        # a = 0.05, b = 0.02, c = 100
-
-        x = np.arange(0, len(y), 1)
-        x = x / bn.nanmax(x) * c
-
-        multiplier = a * np.exp(-b * x)
-        return y * multiplier
-
 
 class AnEnDatasetWithTimeWindow(AnEnDataset):
     """
@@ -419,6 +408,8 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         triplet = self.samples[index]
 
         # Determine the start and the end indices for the lead time window
+        # 
+        # No need to check for lead time overflow because lead times at the boundary has already been removed
         flt_left = triplet[1] - self.lead_time_radius
         flt_right = triplet[1] + self.lead_time_radius + 1
 
@@ -450,10 +441,10 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         return ret
 
 
-class AnEnOneToMany(AnEnDatasetWithTimeWindow):
+class AnEnDatasetOneToMany(AnEnDatasetWithTimeWindow):
     """
-    AnEnOneToMany is inherited from AnEnDatasetWithTimeWindow. It is mostly the same as AnEnDatasetWithTimeWindow
-    except that AnEnOneToMany only accepts one stations in the observation dataset and multiple stations in the
+    AnEnDatasetOneToMany is inherited from AnEnDatasetWithTimeWindow. It is mostly the same as AnEnDatasetWithTimeWindow
+    except that AnEnDatasetOneToMany only accepts one stations in the observation dataset and multiple stations in the
     forecast dataset. Users need to specify which forecast stations is the matching station to the observation
     stations. However, when creating triplets, forecasts from all stations will be used to be compared to the forecasts
     at the matching station.
@@ -461,7 +452,7 @@ class AnEnOneToMany(AnEnDatasetWithTimeWindow):
 
     def __init__(self, matching_forecast_station, **kw):
         """
-        Initialize an AnEnOneToMany class
+        Initialize an AnEnDatasetOneToMany class
         :param matching_forecast_station: The index of the forecast station that matches the observation station.
         :param kw: Additional arguments to `AnEnDatasetWithTimeWindow`
         """
@@ -477,8 +468,9 @@ class AnEnOneToMany(AnEnDatasetWithTimeWindow):
 
         self.matching_forecast_station = matching_forecast_station
 
-        # This is where AnEnOneToMany starts to differ from the base classes. Triplets will be duplicated with changing
-        # the station indices. Because not only the matching station is going to be similar, all stations from forecasts
+        # This is where AnEnDatasetOneToMany starts to differ from the base classes.
+        # Triplets will be duplicated with changing the station indices.
+        # Because not only the matching station is going to be similar, all stations from forecasts
         # should be considered similar to the matching station.
         #
 
@@ -530,6 +522,248 @@ class AnEnOneToMany(AnEnDatasetWithTimeWindow):
         anchor = np.expand_dims(anchor, 1)
         positive = np.expand_dims(positive, 1)
         negative = np.expand_dims(negative, 1)
+
+        if self.to_tensor:
+            anchor = torch.tensor(anchor, dtype=torch.float)
+            positive = torch.tensor(positive, dtype=torch.float)
+            negative = torch.tensor(negative, dtype=torch.float)
+
+        ret = [anchor, positive, negative]
+
+        if self.add_lead_time_index:
+            lead_time_index = triplet[1]
+
+            if self.to_tensor:
+                lead_time_index = torch.tensor(lead_time_index, dtype=torch.long)
+
+            ret.append(lead_time_index)
+
+        return ret
+
+
+class AnEnDatasetSpatial(AnEnDataset):
+
+    def __init__(self, forecasts, forecast_grid_file,
+                 sorted_members, obs_x, obs_y,
+                 num_analogs, lead_time_radius,
+                 metric_width, metric_height,
+                 margin=np.nan, positive_predictand_index=None,
+                 triplet_sample_prob=1, triplet_sample_method='fitness',
+                 forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
+                 fitness_num_negative=1):
+
+        # Sanity checks
+        assert isinstance(forecasts, AnEnDict), 'Forecasts much be an object of AnEnDict'
+        assert isinstance(sorted_members, dict), 'Sorted members must be a dictionary!'
+
+        expected_dict_keys = ['index', 'distance', 'anchor_times_index', 'search_times_index']
+        assert all([key in sorted_members.keys() for key in expected_dict_keys]), \
+            '{} are required in sorted members'.format(sorted_members)
+        assert num_analogs <= sorted_members['index'].shape[3], 'Not enough search entries to select analogs from!'
+
+        if positive_predictand_index is not None:
+            assert 0 <= positive_predictand_index < sorted_members['aligned_obs'].shape[0]
+
+        # Decide the triplet selection method
+        if triplet_sample_method == 'fitness':
+            select_func = self._select_fitness
+        elif triplet_sample_method == 'sequential':
+            select_func = self._select_sequential
+        else:
+            raise Exception('Unknown selection method {}!'.format(triplet_sample_method))
+
+        # Initialization
+        self.forecasts = forecasts
+        self.sorted_members = sorted_members
+        self.num_analogs = num_analogs
+        self.lead_time_radius = lead_time_radius
+        self.margin = margin
+        self.positive_predictand_index = positive_predictand_index
+        self.triplet_sample_prob = triplet_sample_prob
+        self.triplet_sample_method = triplet_sample_method
+        self.forecast_data_key = forecast_data_key
+        self.to_tensor = to_tensor
+        self.fitness_num_negative = fitness_num_negative
+        self.tqdm = tqdm
+        self.disable_pbar = disable_pbar
+
+        # Preset
+        self.padding = True
+        self.spatial_metric_width = metric_width
+        self.spatial_metric_height = metric_height
+
+        # These members are not used in the current class
+        self.add_lead_time_index = False
+
+        self.samples = []
+        self.anchor_sample_times = []
+        self.positive_sample_times = []
+        self.negative_sample_times = []
+
+        # Parse the forecast grid file
+        AnEnGrid = AnEnDatasetSpatial.get_grid_class()
+        self.forecast_grid = AnEnGrid(forecast_grid_file)
+
+        # Determine the matching forecast station to each observation station
+
+        # `station_match_lookup` is dictionary with observation station index as the key
+        # and the matching forecast station index as the value.
+        #
+        self.station_match_lookup = self._match_stations(obs_x, obs_y)
+
+        # Determine the boundary of lead times during training to avoid stacking time series of different lengths
+        num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
+        assert num_lead_times >= 2 * self.lead_time_radius + 1, "Not enought lead times with a radius of {}".format(self.lead_time_radius)
+        lead_time_start = self.lead_time_radius
+        lead_time_end = num_lead_times - self.lead_time_radius
+
+        print('Sampling from {} lead time indices [{}:{})'.format(lead_time_end-lead_time_start, lead_time_start, lead_time_end))
+
+        # Create index samples
+        #
+        # Each sample is a length-of-5 list containing the following information:
+        # - the station index
+        # - the lead time index
+        # - the anchor time index
+        # - the positive candidate time index
+        # - the negative candidate time index
+        #
+        print('Generating triplet samples ...')
+
+        # These variables will be used inside the for loops
+        num_stations = len(self.station_match_lookup)
+        self.num_total_entries = sorted_members['index'].shape[3]
+
+        with self.tqdm(total=num_stations * (lead_time_end - lead_time_start), disable=self.disable_pbar, leave=True) as pbar:
+            for obs_station_index in range(num_stations):
+                for lead_time_index in np.arange(lead_time_start, lead_time_end):
+
+                    for anchor_index, anchor_time_index in enumerate(sorted_members['anchor_times_index']):
+
+                        # If the predictand should be positive, exclude NaN and non-positive cases
+                        if positive_predictand_index is not None:
+                            o = sorted_members['aligned_obs'][
+                                positive_predictand_index, obs_station_index, anchor_time_index, lead_time_index]
+
+                            if np.isnan(o) or o <= 0:
+                                continue
+
+                        # Generate triplets for this [station, lead time, anchor] from all possible search entries
+                        select_func(obs_station_index, lead_time_index, anchor_index, anchor_time_index)
+
+                    # Update the progress bar
+                    pbar.update(1)
+
+    def _check_and_add(self, *args):
+
+        # Call the base class routine
+        super()._check_and_add(*args)
+
+        # Add forecast stations
+        #
+        # The last item in the sample has just been added and that is the one I'm going to modify.
+        # In each item, the observation station index is on the first position, and I'm appending the matching
+        # forecast station index.
+        #
+        self.samples[-1].append(self.station_match_lookup[args[0]])
+
+        # The content of a triplet element is:
+        # [0]: obs station index
+        # [1]: lead time index
+        # [2]: anchor time index
+        # [3]: positive time index
+        # [4]: negative time index
+        # [5]: fcst station index
+
+    @staticmethod
+    def get_grid_class():
+        try:
+            from AnEnGrid import AnEnGrid
+
+        except:
+
+            # Guess the location
+            guess = glob.glob(os.path.expanduser('~/github/AnalogsEnsemble/build/CGrid/AnEnGrid*'))
+
+            if len(guess) == 1:
+                # File found. Include the path and try again
+                sys.path.append(os.path.dirname(guess[0]))
+                from AnEnGrid import AnEnGrid
+
+            else:
+                msg = '[AnEnDatasetSpatial] Cannot find module AnEnGrid. Please specify the directory to the shared ' \
+                      'library using environment variable , e.g. on Linux, ' \
+                      'export PYTHONPATH=/Users/wuh20/github/AnalogsEnsemble/build/CGrid'
+
+                raise ImportError(msg)
+
+        return AnEnGrid
+
+    def _match_stations(self, obs_x, obs_y):
+
+        # Get forecast coordinates
+        fcst_x, fcst_y = self.forecasts['Xs'], self.forecasts['Ys']
+
+        # Initialization
+        station_dict = {}
+
+        for obs_i in range(len(obs_x)):
+            o_x, o_y = obs_x[obs_i], obs_y[obs_i]
+            distances = [(o_x-fcst_x[fcst_i])**2+(o_y-fcst_y[fcst_i])**2 for fcst_i in range(len(fcst_x))]
+            station_dict[obs_i] = np.nanargmin(distances)
+
+        return station_dict
+
+    def __str__(self):
+        msg = super()._get_summary()
+        del msg[-2:]
+
+        msg.append('Lead time radius: {}'.format(self.lead_time_radius))
+        msg.append('Forecast grid: {}'.format(self.forecast_grid.summary()))
+
+        if self.forecast_grid.nrows() <= NROWS and self.forecast_grid.nrows() <= NCOLS:
+            msg.append(self.forecast_grid.detail())
+
+        if len(self.station_match_lookup) <= NSTATIONS:
+            msg.append('Matching stations:')
+            msg.extend(['obs [{}] --> fcst [{}]'.format(k, v) for k, v in self.station_match_lookup.items()])
+
+        msg.append('********************** End of messages **********************')
+        return '\n'.join(msg)
+
+    def __getitem__(self, index):
+        """
+        Returns the triplet forecasts [anchor, positive, negative].
+
+        Elements have the same dimension of [Parameters, Height, Width, Lead times].
+
+        Heigth is counted top down, and width is counted left right.
+        """
+
+        assert isinstance(index, int), 'Only support indexing using a single integer!'
+
+        # Extract the triplet sample
+        triplet = self.samples[index]
+
+        # Determine the start and the end indices for the lead time window
+        flt_left = triplet[1] - self.lead_time_radius
+        flt_right = triplet[1] + self.lead_time_radius + 1
+
+        # Get spatial mask
+        fcst_station_mask = self.forecast_grid.getRectangle(
+            triplet[5], self.spatial_metric_width, self.spatial_metric_height, self.padding)
+
+        fcst_station_mask_flat = [int(e) for sub_list in fcst_station_mask for e in sub_list]
+
+        # Get forecast values at a single station and from a lead time window
+        anchor = self.forecasts[self.forecast_data_key][:, fcst_station_mask_flat, triplet[2], flt_left:flt_right]
+        positive = self.forecasts[self.forecast_data_key][:, fcst_station_mask_flat, triplet[3], flt_left:flt_right]
+        negative = self.forecasts[self.forecast_data_key][:, fcst_station_mask_flat, triplet[4], flt_left:flt_right]
+
+        # Reconstruct the structure [parameters, height, width, lead times]
+        anchor = anchor.reshape(anchor.shape[0], self.spatial_metric_height, self.spatial_metric_width, anchor.shape[2])
+        positive = positive.reshape(positive.shape[0], self.spatial_metric_height, self.spatial_metric_width, positive.shape[2])
+        negative = negative.reshape(negative.shape[0], self.spatial_metric_height, self.spatial_metric_width, negative.shape[2])
 
         if self.to_tensor:
             anchor = torch.tensor(anchor, dtype=torch.float)

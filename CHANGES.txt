@@ -1,3 +1,14 @@
+# DeepAnalogs 0.2.11
+
+- Added `AnEnDatasetSpatial`
+- Added more optimizer options
+- Models can now be saved as pure python modules. This is helpful for model interpretation.
+- Added training with Convolutional LSTM embeddings and naive spatial masks
+- Added more members to save from `AnEnDataset` and the derived classes
+- Renamed `AnEnOneToMany` to `AnEnDatasetOneToMany`
+- Moved from command line options to YAML configuration
+- Moved lead time checked from `__get_item__` to initialization in `AnEnDataset` and the derived classes
+
 # DeepAnalogs 0.1.4
 
 - Added `AnEnOneToMany` dataset class
