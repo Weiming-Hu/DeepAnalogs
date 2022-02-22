@@ -267,3 +267,7 @@ train:
     # Momentum if the optimizer supports this
     momentum: 0
 
+    # Number of epochs to wait before termination if no improvements are detected.
+    # Can be a valid integer or !!null to turn this off
+    #
+    patience: !!null

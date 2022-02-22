@@ -26,6 +26,7 @@ import numpy as np
 from tqdm import tqdm
 from pprint import pprint
 from datetime import datetime
+from EarlyStopping import EarlyStopping
 
 from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
@@ -382,6 +383,9 @@ def main():
 
     # The boolean variable for whether the process has been interrupted
     interrupt = False
+    
+    # A variable to control early stopping
+    early_stopping = EarlyStopping(patience=args['train']['patience'])
 
     # Train the model
     try:
@@ -434,6 +438,10 @@ def main():
                 torch.save(embedding_net, "{}/embedding_epoch-{:05d}.pt_python".format(
                     os.path.expanduser(args['io']['out']), epoch + 1))
             embedding_net.to(device)
+            
+            # Check for early stopping
+            if early_stopping(test_losses['mean'][-1]):
+                break
 
     except KeyboardInterrupt:
         print("Keyboard interruption catched! I'm going to save the training loss.")

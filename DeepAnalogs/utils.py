@@ -111,7 +111,9 @@ def add_default_values(args):
         args['train']['wdecay'] = 0
     if 'momentum' not in args['train']:
         args['train']['momentum'] = 0
-
+    if 'patience' not in args['train']:
+        args['train']['patience'] = None
+        
     return args
 
 
