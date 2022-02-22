@@ -25,7 +25,7 @@ This code has been used in the paper [Weather Analogs with a Machine Learning Si
 ## Installation
 
 ```
-pip install git+git://github.com/Weiming-Hu/DeepAnalogs.git
+pip install git+https://github.com/Weiming-Hu/DeepAnalogs.git
 ```
 
 ## Usage
