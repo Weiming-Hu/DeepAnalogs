@@ -386,6 +386,10 @@ def main():
     
     # A variable to control early stopping
     early_stopping = EarlyStopping(patience=args['train']['patience'])
+    
+    # Learning rate scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, factor=0.2, patience=5, verbose=True, min_lr=1e-5)
 
     # Train the model
     try:
@@ -442,6 +446,9 @@ def main():
             # Check for early stopping
             if early_stopping(test_losses['mean'][-1]):
                 break
+            
+            # Check for learning rate updating
+            scheduler.step(test_losses['mean'][-1])
 
     except KeyboardInterrupt:
         print("Keyboard interruption catched! I'm going to save the training loss.")
