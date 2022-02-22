@@ -81,7 +81,7 @@ def main():
     ###################
 
     parser = argparse.ArgumentParser(description='Train an embedding network v {}'.format(__version__))
-    parser.add_argument('yaml', metavar='YAML', type=str, help='A YAML file. An example at Examples/example*.yaml')
+    parser.add_argument('yaml', metavar='YAML', type=str, help='A YAML file. Example files at https://github.com/Weiming-Hu/DeepAnalogs/tree/main/Examples')
     args = read_yaml(parser.parse_args().yaml)
     args = validate_args(args)
 
