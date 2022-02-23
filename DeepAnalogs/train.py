@@ -26,10 +26,10 @@ import numpy as np
 from tqdm import tqdm
 from pprint import pprint
 from datetime import datetime
-from EarlyStopping import EarlyStopping
 
 from DeepAnalogs import __version__
 from DeepAnalogs.AnEnDict import AnEnDict
+from DeepAnalogs.EarlyStopping import EarlyStopping
 from DeepAnalogs.utils import sort_distance_mc, summary_pytorch, read_yaml, validate_args
 from DeepAnalogs.Embeddings import EmbeddingLSTM, EmbeddingConvLSTM, EmbeddingNaiveSpatialMask
 from DeepAnalogs.AnEnDataset import AnEnDatasetWithTimeWindow, AnEnDatasetOneToMany, AnEnDatasetSpatial
