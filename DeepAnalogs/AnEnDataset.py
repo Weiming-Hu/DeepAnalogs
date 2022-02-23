@@ -253,7 +253,7 @@ class AnEnDataset(Dataset):
 
         # Check for the probability of random sampling
         if random.random() > self.triplet_sample_prob:
-            return
+            return False
 
         # This is the distance between the positive candidate and the anchor
         d_p = self.sorted_members['distance'][station_index, anchor_index, lead_time_index, positive_candidate_index]
@@ -263,7 +263,7 @@ class AnEnDataset(Dataset):
 
         # Distances should both be valid and they should be different. Otherwise, skip this pair.
         if np.isnan(d_p) or np.isnan(d_n) or d_p == d_n:
-            return
+            return False
 
         # The comparison must not be negative
         if d_p > d_n:
@@ -271,7 +271,7 @@ class AnEnDataset(Dataset):
 
         if d_p + self.margin < d_n:
             # This triplet is considered too easy, skip it
-            return
+            return False
 
         # This is the index of the positive candidate
         i_p = self.sorted_members['index'][station_index, anchor_index, lead_time_index, positive_candidate_index]
@@ -287,6 +287,7 @@ class AnEnDataset(Dataset):
         self.positive_sample_times.append(self.forecasts['Times'][i_p] + current_lead_time)
         self.negative_sample_times.append(self.forecasts['Times'][i_n] + current_lead_time)
         self.anchor_sample_times.append(self.forecasts['Times'][anchor_time_index] + current_lead_time)
+        return True
 
     def _get_summary(self):
         """
@@ -657,7 +658,7 @@ class AnEnDatasetSpatial(AnEnDataset):
     def _check_and_add(self, *args):
 
         # Call the base class routine
-        super()._check_and_add(*args)
+        new_sample_added = super()._check_and_add(*args)
 
         # Add forecast stations
         #
@@ -665,7 +666,8 @@ class AnEnDatasetSpatial(AnEnDataset):
         # In each item, the observation station index is on the first position, and I'm appending the matching
         # forecast station index.
         #
-        self.samples[-1].append(self.station_match_lookup[args[0]])
+        if new_sample_added:
+            self.samples[-1].append(self.station_match_lookup[args[0]])
 
         # The content of a triplet element is:
         # [0]: obs station index
