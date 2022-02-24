@@ -63,6 +63,10 @@ def add_default_values(args):
         args['data']['dataset_class'] = 'AnEnDatasetWithTimeWindow'
     if 'test_complete_sequence' not in args['data']:
         args['data']['test_complete_sequence'] = False
+    if 'semihard_fcst_dist_max' not in args['data']:
+        args['data']['semihard_fcst_dist_max'] = None
+    if 'semihard_fcst_var' not in args['data']:
+        args['data']['semihard_fcst_var'] = None
 
     if 'use_conv_lstm' not in args['model']:
         args['model']['use_conv_lstm'] = False

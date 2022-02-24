@@ -53,7 +53,8 @@ class AnEnDataset(Dataset):
                  margin=np.nan, positive_predictand_index=None,
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-                 fitness_num_negative=1, add_lead_time_index=False):
+                 fitness_num_negative=1, add_lead_time_index=False,
+                 semihard_fcst_var=None, semihard_fcst_dist_max=None):
         """
         Initialize an AnEnDataset
 
@@ -93,12 +94,14 @@ class AnEnDataset(Dataset):
             select_func = self._select_fitness
         elif triplet_sample_method == 'sequential':
             select_func = self._select_sequential
+        elif triplet_sample_method == 'semihard':
+            select_func = self._select_semihard
         else:
             raise Exception('Unknown selection method {}!'.format(triplet_sample_method))
 
         # These variables will be used inside the for loops
         num_stations = sorted_members['index'].shape[0]
-        num_lead_times = sorted_members['index'].shape[2]
+        self.num_lead_times = sorted_members['index'].shape[2]
         self.num_total_entries = sorted_members['index'].shape[3]
 
         # Initialization
@@ -115,6 +118,10 @@ class AnEnDataset(Dataset):
         self.add_lead_time_index = add_lead_time_index
         self.tqdm = tqdm
         self.disable_pbar = disable_pbar
+        self.semihard_fcst_var = semihard_fcst_var
+        self.semihard_fcst_dist_max = semihard_fcst_dist_max
+        
+        self._semihard_name_to_index()
 
         self.samples = []
         self.anchor_sample_times = []
@@ -132,9 +139,9 @@ class AnEnDataset(Dataset):
         #
         print('Generating triplet samples ...')
 
-        with self.tqdm(total=num_stations * num_lead_times, disable=self.disable_pbar, leave=True) as pbar:
+        with self.tqdm(total=num_stations * self.num_lead_times, disable=self.disable_pbar, leave=True) as pbar:
             for station_index in range(num_stations):
-                for lead_time_index in range(num_lead_times):
+                for lead_time_index in range(self.num_lead_times):
 
                     for anchor_index, anchor_time_index in enumerate(sorted_members['anchor_times_index']):
 
@@ -245,6 +252,82 @@ class AnEnDataset(Dataset):
 
                 self._check_and_add(station_index, anchor_index, lead_time_index, positive_candidate_index,
                                     negative_candidate_index + self.num_analogs, anchor_time_index)
+            
+    def _semihard_name_to_index(self):
+        # Convert forecast variable name to indices if needed
+        if isinstance(self.semihard_fcst_var, str):
+            self.semihard_fcst_var = np.where(np.array(self.forecasts['ParameterNames']) == self.semihard_fcst_var)[0].item()
+        elif isinstance(self.semihard_fcst_var, int):
+            assert self.semihard_fcst_var < len(self.forecasts['ParameterNames']), 'Forecast variable index out of bound!'
+        else:
+            raise Exception('Forecast variable can either be names or indices')
+        
+    def _semihard_lead_time_range(self, lead_time_index):
+        lead_time_radius = self.lead_time_radius if hasattr(self, 'lead_time_radius') else 0
+
+        lead_time_slice= slice(
+            lead_time_index - lead_time_radius if lead_time_index - lead_time_radius >= 0 else 0,
+            lead_time_index + lead_time_radius + 1 if lead_time_index + lead_time_radius < self.num_lead_times else self.num_lead_times)
+        
+        return lead_time_slice
+    
+    def _semihard_fcst_station_mask(self, station_index):
+        return [station_index]
+                
+    def _select_semihard(self, station_index, lead_time_index, anchor_index, anchor_time_index):
+        
+        # Get observation distance array
+        obs_dists = self.sorted_members['distance'][station_index, anchor_index, lead_time_index]
+        
+        # Pre-calculate forecast station mask and the lead time range
+        stations = self._semihard_fcst_station_mask()
+        lead_times = self._semihard_lead_time_range(lead_time_index)
+        
+        # Get target forecast
+        target_fcst = self.forecasts[self.forecast_data_key][self.fcst_var, stations, anchor_time_index]
+        target_fcst = target_fcst[:, lead_times]
+        
+        assert len(target_fcst.shape) == 2, 'Target forecast unexpected shape!'
+        
+        # Get search forecasts
+        search_fcsts = self.forecasts[self.forecast_data_key][self.fcst_var, stations, :]
+        search_fcsts = search_fcsts[:, :, lead_times]
+        
+        # Calculate forecast distances
+        fcst_dists = np.abs(search_fcsts.mean(aixs=(0, 2)) - target_fcst.mean())
+        
+        # Start selection
+        counter_p = 0
+        
+        for pos_p in range(len(fcst_dists) - 1):
+            
+            if fcst_dists[pos_p] > self.semihard_fcst_dist_max:
+                continue
+                
+            else:
+                counter_n = 0
+                
+                for pos_n in range(pos_p + 1, len(fcst_dists) - 1):
+                    
+                    if fcst_dists[pos_n] > self.semihard_fcst_dist_max:
+                        continue
+                    elif obs_dists[pos_p] + self.margin >= obs_dists[pos_n]:
+                        continue
+                    else:
+                        self._check_and_add(station_index, anchor_index, lead_time_index, pos_p, pos_n, anchor_time_index)
+                    
+                    counter_n += 1
+                    
+                    if counter_n == self.fitness_num_negative:
+                        break
+                        
+            counter_p += 1
+            
+            if counter_p == self.num_analogs:
+                break
+        
+        
+        
 
     def _check_and_add(self, station_index, anchor_index, lead_time_index,
                        positive_candidate_index, negative_candidate_index, anchor_time_index):
@@ -392,11 +475,10 @@ class AnEnDatasetWithTimeWindow(AnEnDataset):
         super().__init__(**kw)
 
         self.lead_time_radius = lead_time_radius
-        num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
 
         # Calculate a mask for which samples to keep or to remove
         keep_samples = [True if self.samples[sample_index][1] - lead_time_radius >= 0 and
-                                self.samples[sample_index][1] + lead_time_radius < num_lead_times
+                                self.samples[sample_index][1] + lead_time_radius < self.num_lead_times
                         else False for sample_index in range(len(self))]
 
         # Copy samples and times
@@ -559,7 +641,9 @@ class AnEnDatasetSpatial(AnEnDataset):
                  margin=np.nan, positive_predictand_index=None,
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
-                 fitness_num_negative=1):
+                 fitness_num_negative=1,
+                 semihard_fcst_var=None,
+                 semihard_fcst_dist_max=None):
 
         # Sanity checks
         assert isinstance(forecasts, AnEnDict), 'Forecasts much be an object of AnEnDict'
@@ -578,6 +662,8 @@ class AnEnDatasetSpatial(AnEnDataset):
             select_func = self._select_fitness
         elif triplet_sample_method == 'sequential':
             select_func = self._select_sequential
+        elif triplet_sample_method == 'semihard':
+            select_func = self._select_semihard
         else:
             raise Exception('Unknown selection method {}!'.format(triplet_sample_method))
 
@@ -595,6 +681,10 @@ class AnEnDatasetSpatial(AnEnDataset):
         self.fitness_num_negative = fitness_num_negative
         self.tqdm = tqdm
         self.disable_pbar = disable_pbar
+        self.semihard_fcst_var = semihard_fcst_var
+        self.semihard_fcst_dist_max = semihard_fcst_dist_max
+        
+        self._semihard_name_to_index()
 
         # Preset
         self.padding = True
@@ -621,10 +711,10 @@ class AnEnDatasetSpatial(AnEnDataset):
         self.station_match_lookup = self._match_stations(obs_x, obs_y)
 
         # Determine the boundary of lead times during training to avoid stacking time series of different lengths
-        num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
-        assert num_lead_times >= 2 * self.lead_time_radius + 1, "Not enought lead times with a radius of {}".format(self.lead_time_radius)
+        self.num_lead_times = self.forecasts[self.forecast_data_key].shape[3]
+        assert self.num_lead_times >= 2 * self.lead_time_radius + 1, "Not enought lead times with a radius of {}".format(self.lead_time_radius)
         lead_time_start = self.lead_time_radius
-        lead_time_end = num_lead_times - self.lead_time_radius
+        lead_time_end = self.num_lead_times - self.lead_time_radius
 
         print('Sampling from {} lead time indices [{}:{})'.format(lead_time_end-lead_time_start, lead_time_start, lead_time_end))
 
@@ -760,10 +850,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         flt_right = triplet[1] + self.lead_time_radius + 1
 
         # Get spatial mask
-        fcst_station_mask = self.forecast_grid.getRectangle(
-            triplet[5], self.spatial_metric_width, self.spatial_metric_height, self.padding)
-
-        fcst_station_mask_flat = [int(e) for sub_list in fcst_station_mask for e in sub_list]
+        fcst_station_mask_flat = self._semihard_fcst_station_mask(triplet[5])
 
         # Get forecast values at a single station and from a lead time window
         anchor = self.forecasts[self.forecast_data_key][:, fcst_station_mask_flat, triplet[2], flt_left:flt_right]
@@ -791,3 +878,10 @@ class AnEnDatasetSpatial(AnEnDataset):
             ret.append(lead_time_index)
 
         return ret
+    
+    def _semihard_fcst_station_mask(self, station_index):
+        fcst_station_mask = self.forecast_grid.getRectangle(
+            station_index, self.spatial_metric_width, self.spatial_metric_height, self.padding)
+
+        fcst_station_mask_flat = [int(e) for sub_list in fcst_station_mask for e in sub_list]
+        return fcst_station_mask_flat

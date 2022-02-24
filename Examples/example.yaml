@@ -103,7 +103,13 @@ data:
     #
     triplet_sample_method: fitness
 
-    # The number of negative cases for each positive case if the fitness sampling method is used
+    # If the sample method is semihard, this filters out forecasts that are too disimilar
+    semihard_fcst_dist_max: !!null
+
+    # If the sample method is semihard, this specifies which forecast variable to use for controling the selection
+    semihard_fcst_var: !!null
+
+    # The number of negative cases for each positive case if the fitness or semihard sampling method is used
     # Example: 21
     #
     fitness_num_negative: '*** Required when the sampling method is fitness ***'
@@ -245,7 +251,7 @@ train:
     # Can be one of MinMaxScaler or StandardScaler
     #
     scaler_type: MinMaxScaler
-    
+
     y_scaler_type: !!null
 
     # The number of parallel DataLoader workers during training

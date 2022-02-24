@@ -196,6 +196,8 @@ def main():
             'disable_pbar': False,
             'tqdm': tqdm,
             'fitness_num_negative': args['data']['fitness_num_negative'],
+            'semihard_fcst_var': args['data']['semihard_fcst_var'],
+            'semihard_fcst_dist_max': args['data']['semihard_fcst_dist_max'],
         }
 
         if network_type == 'ConvLSTM' or network_type == 'NaiveSpatialMask':
