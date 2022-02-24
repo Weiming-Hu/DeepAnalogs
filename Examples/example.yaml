@@ -245,6 +245,8 @@ train:
     # Can be one of MinMaxScaler or StandardScaler
     #
     scaler_type: MinMaxScaler
+    
+    y_scaler_type: !!null
 
     # The number of parallel DataLoader workers during training
     train_loaders: 4

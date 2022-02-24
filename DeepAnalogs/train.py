@@ -162,7 +162,7 @@ def main():
         #
         sorted_members = sort_distance_mc(
             anchor_times_index, search_times_index, aligned_obs,
-            scaler_type=args['train']['scaler_type'],
+            scaler_type=args['train']['y_scaler_type'],
             parameter_weights=args['data']['obs_weights'],
             julian_weight=args['data']['julian_weight'],
             forecast_times=forecasts['Times'],

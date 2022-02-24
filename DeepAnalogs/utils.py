@@ -97,6 +97,8 @@ def add_default_values(args):
         args['train']['lr_decay'] = 0
     if 'scaler_type' not in args['train']:
         args['train']['scaler_type'] = 'MinMaxScaler'
+    if 'y_scaler_type' not in args['train']:
+        args['train']['y_scaler_type'] = None
     if 'train_loaders' not in args['train']:
         args['train']['train_loaders'] = os.cpu_count()
     if 'test_loaders' not in args['train']:
@@ -304,29 +306,35 @@ def sort_distance(anchor_times, search_times, arr, scaler_type, parameter_weight
         sorted_members['value'] = np.full(value_dimensions, np.nan)
 
     # Normalization
-    if scaler_type == 'MinMaxScaler':
-        scaler = preprocessing.MinMaxScaler()
-
-        if julian_weight > 0:
-            julian_max = np.max((np.max(anchor_julians), np.max(search_julians)))
-            anchor_julians /= julian_max
-            search_julians /= julian_max
-
-    elif scaler_type == 'StandardScaler':
-        scaler = preprocessing.StandardScaler()
-
-        if julian_weight > 0:
-            julian_mean = np.mean((anchor_julians, search_julians))
-            julian_std = np.std((anchor_julians, search_julians))
-            anchor_julians = (anchor_julians - julian_mean) / julian_std
-            search_julians = (search_julians - julian_mean) / julian_std
-
+    if scaler_type is None:
+        arr_norm = arr.copy()
+        
+        assert julian_weight <= 0, 'Target values need to be scaled before combining with Julian dates'
+    
     else:
-        raise Exception('Unknown scaler type {}'.format(scaler_type))
+        if scaler_type == 'MinMaxScaler':
+            scaler = preprocessing.MinMaxScaler()
 
-    arr_norm = np.transpose(arr.reshape((num_parameters, num_samples)))
-    arr_norm = scaler.fit_transform(arr_norm)
-    arr_norm = np.transpose(arr_norm).reshape(arr.shape)
+            if julian_weight > 0:
+                julian_max = np.max((np.max(anchor_julians), np.max(search_julians)))
+                anchor_julians /= julian_max
+                search_julians /= julian_max
+
+        elif scaler_type == 'StandardScaler':
+            scaler = preprocessing.StandardScaler()
+
+            if julian_weight > 0:
+                julian_mean = np.mean((anchor_julians, search_julians))
+                julian_std = np.std((anchor_julians, search_julians))
+                anchor_julians = (anchor_julians - julian_mean) / julian_std
+                search_julians = (search_julians - julian_mean) / julian_std
+
+        else:
+            raise Exception('Unknown scaler type {}'.format(scaler_type))
+
+        arr_norm = np.transpose(arr.reshape((num_parameters, num_samples)))
+        arr_norm = scaler.fit_transform(arr_norm)
+        arr_norm = np.transpose(arr_norm).reshape(arr.shape)
 
     # Calculate distance and sort indices
     if verbose:
