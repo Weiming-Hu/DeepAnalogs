@@ -238,7 +238,7 @@ def main():
             else:
                 test_indices.append(sample_index)
 
-        with open(os.path.join(args['io']['out'], 'train_validate_indices.pkl', 'wb')
+        with open(os.path.join(args['io']['out'], 'train_validate_indices.pkl'), 'wb') as f:
             pickle.dump((train_indices, test_indices), f)
 
         # Random shuffle training samples
@@ -434,7 +434,7 @@ def main():
                 test_losses['max'].append(np.max(test_batch_losses))
                 test_losses['min'].append(np.min(test_batch_losses))
                 
-            print('Epoch {}/{}: train loss mean: {:.4f}; validate loss: {:.4f}'.format(
+            print('Epoch {}/{}: train loss mean: {}; validate loss: {}'.format(
                 epoch + 1, args['train']['epochs'], train_losses['mean'][-1], test_losses['mean'][-1]))
 
             # Model saving

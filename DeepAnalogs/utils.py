@@ -402,7 +402,7 @@ def sort_distance_mc(anchor_times, search_times, arr, scaler_type, parameter_wei
 
     # Run the algorithm in parallel
     print('Sorting observations in parallel ...')
-    sorted_members_list = process_map(wrapper, anchor_times, max_workers=max_workers, leave=True,
+    sorted_members_list = process_map(wrapper, anchor_times, max_workers=max_workers, leave=True, disable=disable_pbar,
                                       chunksize=math.ceil(len(anchor_times) / max_workers / 10))
 
     # Combine list members into a big dictionary
