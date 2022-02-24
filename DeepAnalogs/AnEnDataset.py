@@ -156,6 +156,7 @@ class AnEnDataset(Dataset):
         self.save_samples('{}/samples.pkl'.format(dirname))
         self.save_forecasts('{}/forecasts.pkl'.format(dirname))
         self.save_sorted_members('{}/sorted_members.pkl'.format(dirname))
+        self.save_sample_times('{}/sample_times.pkl'.format(dirname))
 
     def save_samples(self, filename):
         with open(filename, 'wb') as f:
@@ -168,6 +169,13 @@ class AnEnDataset(Dataset):
     def save_sorted_members(self, filename):
         with open(filename, 'wb') as f:
             pickle.dump(self.sorted_members, f)
+
+    def save_sample_times(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump({
+                'positive': self.positive_sample_times,
+                'negative': self.negative_sample_times,
+                'anchor': self.anchor_sample_times}, f)
 
     def _select_sequential(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         """

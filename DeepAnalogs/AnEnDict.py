@@ -47,7 +47,7 @@ class AnEnDict(dict):
             assert isinstance(stations_index, list)
 
         if file_type == 'Forecasts':
-            variables = ['ParameterNames', 'ParameterCirculars', 'Xs', 'Ys', 'Times', 'FLTs', 'Data']
+            variables = ['ParameterNames', 'Xs', 'Ys', 'Times', 'FLTs', 'Data']
         elif file_type == 'Observations':
             variables = ['ParameterNames', 'Xs', 'Ys', 'Times', 'Data']
         else:
@@ -143,7 +143,9 @@ class AnEnDict(dict):
         assert self['Data'].shape[2] == len(self['Times']), 'Data must have the same time count!'
 
         if file_type == 'Forecasts':
-            assert len(self['ParameterCirculars']) <= len(self['ParameterNames']), "Too many circular variables!"
+            if 'ParameterCirculars' in self:
+                assert len(self['ParameterCirculars']) <= len(self['ParameterNames']), "Too many circular variables!"
+
             assert self['Data'].shape[3] == len(self['FLTs']), 'Data must have the same lead time count!'
 
         if verbose:

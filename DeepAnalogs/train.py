@@ -97,7 +97,7 @@ def main():
     # Import a scaling method
     if args['train']['scaler_type'] == 'MinMaxScaler':
         from DeepAnalogs.Scalers import MinMaxScaler as ScalerClass
-    elif args.scaler_type == 'StandardScaler':
+    elif args['train']['scaler_type'] == 'StandardScaler':
         from DeepAnalogs.Scalers import StandardScaler as ScalerClass
     else:
         raise Exception('The input scaler type {} is not supported!'.format(args.scaler_type))
