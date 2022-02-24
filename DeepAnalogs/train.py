@@ -220,7 +220,7 @@ def main():
         print(dataset)
 
         # Save samples
-        print('\nSaving AnEnDataset [samples, forecasts, sorted_members] ...')
+        print('\nSaving AnEnDataset [samples, forecasts, sorted_members, sample times] ...')
         dataset.save(args['io']['out'])
         print('AnEnDataset has been saved to {}!\n'.format(args['io']['out']))
 
@@ -237,6 +237,9 @@ def main():
                 train_indices.append(sample_index)
             else:
                 test_indices.append(sample_index)
+
+        with open(os.path.join(args['io']['out'], 'train_validate_indices.pkl', 'wb')
+            pickle.dump((train_indices, test_indices), f)
 
         # Random shuffle training samples
         random.shuffle(train_indices)
