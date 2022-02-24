@@ -64,7 +64,9 @@ def add_default_values(args):
     if 'test_complete_sequence' not in args['data']:
         args['data']['test_complete_sequence'] = False
     if 'semihard_fcst_dist_max' not in args['data']:
-        args['data']['semihard_fcst_dist_max'] = None
+        args['data']['semihard_fcst_dist_max'] = np.nan
+    if 'semihard_obs_dist_min' not in args['data']:
+        args['data']['semihard_obs_dist_min'] = np.nan
     if 'semihard_fcst_var' not in args['data']:
         args['data']['semihard_fcst_var'] = None
 

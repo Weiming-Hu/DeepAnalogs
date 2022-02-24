@@ -244,7 +244,7 @@ def main():
             pickle.dump((train_indices, test_indices), f)
 
         # Random shuffle training samples
-        random.shuffle(train_indices)
+        # random.shuffle(train_indices)
 
         # Split the dataset based on the indices
         train_dataset = torch.utils.data.Subset(dataset, train_indices)
@@ -259,7 +259,8 @@ def main():
             test_dataset = torch.utils.data.Subset(dataset, test_indices)
 
         print('{} samples in the training. {} samples in the testing.'.format(len(train_dataset), len(test_dataset)))
-        assert len(train_dataset) > 0 and len(test_dataset) > 0, 'Train/Test datasets cannot be empty!'
+        assert len(train_dataset) > 0 and len(test_dataset) > 0, 'Train [{}]/Test [{}] datasets cannot be empty!'.format(
+            len(train_dataset), len(test_dataset))
 
         ##################
         # Model training #
@@ -271,7 +272,7 @@ def main():
             train_dataset,
             batch_size=args['train']['train_batch'],
             num_workers=args['train']['train_loaders'],
-            shuffle=True)
+            shuffle=False)
 
         test_loader = torch.utils.data.DataLoader(
             test_dataset,

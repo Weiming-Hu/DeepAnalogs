@@ -54,7 +54,7 @@ class AnEnDataset(Dataset):
                  triplet_sample_prob=1, triplet_sample_method='fitness',
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
                  fitness_num_negative=1, add_lead_time_index=False,
-                 semihard_fcst_var=None, semihard_fcst_dist_max=None):
+                 semihard_fcst_var=None, semihard_fcst_dist_max=np.nan, semihard_obs_dist_min=np.nan):
         """
         Initialize an AnEnDataset
 
@@ -96,6 +96,7 @@ class AnEnDataset(Dataset):
             select_func = self._select_sequential
         elif triplet_sample_method == 'semihard':
             select_func = self._select_semihard
+            sorted_members['distance_fcst'] = np.full(sorted_members['distance'].shape, np.nan)
         else:
             raise Exception('Unknown selection method {}!'.format(triplet_sample_method))
 
@@ -120,6 +121,7 @@ class AnEnDataset(Dataset):
         self.disable_pbar = disable_pbar
         self.semihard_fcst_var = semihard_fcst_var
         self.semihard_fcst_dist_max = semihard_fcst_dist_max
+        self.semihard_obs_dist_min = semihard_obs_dist_min
         
         self._semihard_name_to_index()
 
@@ -139,11 +141,15 @@ class AnEnDataset(Dataset):
         #
         print('Generating triplet samples ...')
 
-        with self.tqdm(total=num_stations * self.num_lead_times, disable=self.disable_pbar, leave=True) as pbar:
+        with self.tqdm(total=num_stations * self.num_lead_times * len(sorted_members['anchor_times_index']),
+                       disable=self.disable_pbar, leave=True) as pbar:
+
             for station_index in range(num_stations):
                 for lead_time_index in range(self.num_lead_times):
-
                     for anchor_index, anchor_time_index in enumerate(sorted_members['anchor_times_index']):
+
+                        # Update the progress bar
+                        pbar.update(1)
 
                         # If the predictand should be positive, exclude NaN and non-positive cases
                         if positive_predictand_index is not None:
@@ -155,9 +161,6 @@ class AnEnDataset(Dataset):
 
                         # Generate triplets for this [station, lead time, anchor] from all possible search entries
                         select_func(station_index, lead_time_index, anchor_index, anchor_time_index)
-
-                    # Update the progress bar
-                    pbar.update(1)
 
     def save(self, dirname):
         self.save_samples('{}/samples.pkl'.format(dirname))
@@ -271,8 +274,8 @@ class AnEnDataset(Dataset):
         
         return lead_time_slice
     
-    def _semihard_fcst_station_mask(self, station_index):
-        return [station_index]
+    def _semihard_fcst_station_mask(self, obs_station_index):
+        return [obs_station_index]
                 
     def _select_semihard(self, station_index, lead_time_index, anchor_index, anchor_time_index):
         
@@ -280,21 +283,23 @@ class AnEnDataset(Dataset):
         obs_dists = self.sorted_members['distance'][station_index, anchor_index, lead_time_index]
         
         # Pre-calculate forecast station mask and the lead time range
-        stations = self._semihard_fcst_station_mask()
+        stations = self._semihard_fcst_station_mask(station_index)
         lead_times = self._semihard_lead_time_range(lead_time_index)
         
         # Get target forecast
-        target_fcst = self.forecasts[self.forecast_data_key][self.fcst_var, stations, anchor_time_index]
+        target_fcst = self.forecasts['Data'][self.semihard_fcst_var, stations, anchor_time_index]
         target_fcst = target_fcst[:, lead_times]
         
         assert len(target_fcst.shape) == 2, 'Target forecast unexpected shape!'
         
         # Get search forecasts
-        search_fcsts = self.forecasts[self.forecast_data_key][self.fcst_var, stations, :]
-        search_fcsts = search_fcsts[:, :, lead_times]
+        search_fcsts_index = self.sorted_members['index'][station_index, anchor_index, lead_time_index, :]
+        search_fcsts = self.forecasts['Data'][self.semihard_fcst_var, stations]
+        search_fcsts = search_fcsts[:, search_fcsts_index, lead_times]
         
         # Calculate forecast distances
-        fcst_dists = np.abs(search_fcsts.mean(aixs=(0, 2)) - target_fcst.mean())
+        fcst_dists = np.abs(search_fcsts.mean(axis=(0, 2)) - target_fcst.mean())
+        self.sorted_members['distance_fcst'][station_index, anchor_index, lead_time_index] = fcst_dists
         
         # Start selection
         counter_p = 0
@@ -306,12 +311,16 @@ class AnEnDataset(Dataset):
                 
             else:
                 counter_n = 0
+
+                pos_ns = np.argsort(np.abs(fcst_dists - fcst_dists[pos_p]))
                 
-                for pos_n in range(pos_p + 1, len(fcst_dists) - 1):
+                for pos_n in pos_ns:
                     
-                    if fcst_dists[pos_n] > self.semihard_fcst_dist_max:
+                    if pos_n <= pos_p:
                         continue
-                    elif obs_dists[pos_p] + self.margin >= obs_dists[pos_n]:
+                    elif fcst_dists[pos_n] > self.semihard_fcst_dist_max:
+                        continue
+                    elif self.semihard_obs_dist_min >= obs_dists[pos_n] - obs_dists[pos_p]:
                         continue
                     else:
                         self._check_and_add(station_index, anchor_index, lead_time_index, pos_p, pos_n, anchor_time_index)
@@ -325,9 +334,6 @@ class AnEnDataset(Dataset):
             
             if counter_p == self.num_analogs:
                 break
-        
-        
-        
 
     def _check_and_add(self, station_index, anchor_index, lead_time_index,
                        positive_candidate_index, negative_candidate_index, anchor_time_index):
@@ -358,10 +364,15 @@ class AnEnDataset(Dataset):
 
         # The comparison must not be negative
         if d_p > d_n:
-            raise Exception('I found a distance pair that is not sorted! This is fatal!')
+            msg = '_check_add_add(self, {}, {}, {}, {}, {}, {})'.format(
+                      station_index, anchor_index, lead_time_index,
+                      positive_candidate_index, negative_candidate_index, anchor_time_index) + \
+                   ': I found a distance pair that is not sorted! ' + \
+                   'This is fatal! d_p (), d_n ()'.format(d_p, d_n)
 
-        if d_p + self.margin < d_n:
-            # This triplet is considered too easy, skip it
+            raise Exception(msg)
+
+        if self.margin < d_n - d_p:
             return False
 
         # This is the index of the positive candidate
@@ -643,7 +654,7 @@ class AnEnDatasetSpatial(AnEnDataset):
                  forecast_data_key='Data', to_tensor=True, disable_pbar=False, tqdm=tqdm,
                  fitness_num_negative=1,
                  semihard_fcst_var=None,
-                 semihard_fcst_dist_max=None):
+                 semihard_fcst_dist_max=np.nan, semihard_obs_dist_min=np.nan):
 
         # Sanity checks
         assert isinstance(forecasts, AnEnDict), 'Forecasts much be an object of AnEnDict'
@@ -664,6 +675,7 @@ class AnEnDatasetSpatial(AnEnDataset):
             select_func = self._select_sequential
         elif triplet_sample_method == 'semihard':
             select_func = self._select_semihard
+            sorted_members['distance_fcst'] = np.full(sorted_members['distance'].shape, np.nan)
         else:
             raise Exception('Unknown selection method {}!'.format(triplet_sample_method))
 
@@ -683,6 +695,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         self.disable_pbar = disable_pbar
         self.semihard_fcst_var = semihard_fcst_var
         self.semihard_fcst_dist_max = semihard_fcst_dist_max
+        self.semihard_obs_dist_min = semihard_obs_dist_min
         
         self._semihard_name_to_index()
 
@@ -733,11 +746,15 @@ class AnEnDatasetSpatial(AnEnDataset):
         num_stations = len(self.station_match_lookup)
         self.num_total_entries = sorted_members['index'].shape[3]
 
-        with self.tqdm(total=num_stations * (lead_time_end - lead_time_start), disable=self.disable_pbar, leave=True) as pbar:
+        with self.tqdm(total=num_stations * (lead_time_end - lead_time_start) * len(sorted_members['anchor_times_index']),
+                       disable=self.disable_pbar, leave=True) as pbar:
+
             for obs_station_index in range(num_stations):
                 for lead_time_index in np.arange(lead_time_start, lead_time_end):
-
                     for anchor_index, anchor_time_index in enumerate(sorted_members['anchor_times_index']):
+
+                        # Update the progress bar
+                        pbar.update(1)
 
                         # If the predictand should be positive, exclude NaN and non-positive cases
                         if positive_predictand_index is not None:
@@ -749,9 +766,6 @@ class AnEnDatasetSpatial(AnEnDataset):
 
                         # Generate triplets for this [station, lead time, anchor] from all possible search entries
                         select_func(obs_station_index, lead_time_index, anchor_index, anchor_time_index)
-
-                    # Update the progress bar
-                    pbar.update(1)
 
     def _check_and_add(self, *args):
 
@@ -774,6 +788,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         # [3]: positive time index
         # [4]: negative time index
         # [5]: fcst station index
+        return new_sample_added 
 
     @staticmethod
     def get_grid_class():
@@ -850,7 +865,7 @@ class AnEnDatasetSpatial(AnEnDataset):
         flt_right = triplet[1] + self.lead_time_radius + 1
 
         # Get spatial mask
-        fcst_station_mask_flat = self._semihard_fcst_station_mask(triplet[5])
+        fcst_station_mask_flat = self._semihard_fcst_station_mask(triplet[0])
 
         # Get forecast values at a single station and from a lead time window
         anchor = self.forecasts[self.forecast_data_key][:, fcst_station_mask_flat, triplet[2], flt_left:flt_right]
@@ -879,9 +894,13 @@ class AnEnDatasetSpatial(AnEnDataset):
 
         return ret
     
-    def _semihard_fcst_station_mask(self, station_index):
+    def _semihard_fcst_station_mask(self, obs_station_index):
+
+        station_index = self.station_match_lookup[obs_station_index]
+
         fcst_station_mask = self.forecast_grid.getRectangle(
             station_index, self.spatial_metric_width, self.spatial_metric_height, self.padding)
 
         fcst_station_mask_flat = [int(e) for sub_list in fcst_station_mask for e in sub_list]
+
         return fcst_station_mask_flat
