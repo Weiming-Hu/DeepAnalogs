@@ -32,6 +32,7 @@ setuptools.setup(
         'bottleneck',
         'numpy',
         'torch',
+        'scikit-learn',
     ],
 )
 
