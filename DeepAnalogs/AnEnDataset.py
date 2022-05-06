@@ -123,7 +123,8 @@ class AnEnDataset(Dataset):
         self.semihard_fcst_dist_max = semihard_fcst_dist_max
         self.semihard_obs_dist_min = semihard_obs_dist_min
         
-        self._semihard_name_to_index()
+        if self.semihard_fcst_var is not None:
+            self._semihard_name_to_index()
 
         self.samples = []
         self.anchor_sample_times = []
