@@ -1,4 +1,4 @@
-# ENVISIONING THE FUTURE OF MACHINE LEARNING AND GIS 
+# Envisioning the Future of Machine Learning and GIS
 
 This tutorial is created for the hands-on workshop, titled "ML based similarity matrix in AnEn:  A tutorial of how to train and instantiate a deep learning LSTM + CNN for ensemble modeling".
 
