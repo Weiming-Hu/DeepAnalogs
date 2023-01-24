@@ -22,9 +22,7 @@ The [Parallel Analog Ensemble](https://weiming-hu.github.io/AnalogsEnsemble/) is
 
 ### Citation
 
-```
-Hu, W., Cervone, G., Young, G. et al. Machine Learning Weather Analogs for Near-Surface Variables. Boundary-Layer Meteorol (2023). https://doi.org/10.1007/s10546-022-00779-6
-```
+> Hu, W., Cervone, G., Young, G. et al. Machine Learning Weather Analogs for Near-Surface Variables. Boundary-Layer Meteorol (2023). https://doi.org/10.1007/s10546-022-00779-6
 
 ## Installation
 
