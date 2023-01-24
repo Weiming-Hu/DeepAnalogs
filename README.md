@@ -20,7 +20,11 @@ Training a deep network for weather analogs! This method was developed to identi
 
 The [Parallel Analog Ensemble](https://weiming-hu.github.io/AnalogsEnsemble/) is an implementation that uses the [original statistical metric](https://journals.ametsoc.org/view/journals/mwre/141/10/mwr-d-12-00281.1.xml) proposed by Dr. Delle Monache. However, the Deep Analogs seek to use a deep network for weather analog identification.
 
-This code has been used in the paper [Weather Analogs with a Machine Learning Similarity Metric for Renewable Resource Forecasting](https://arxiv.org/abs/2103.04530).
+### Citation
+
+```
+Hu, W., Cervone, G., Young, G. et al. Machine Learning Weather Analogs for Near-Surface Variables. Boundary-Layer Meteorol (2023). https://doi.org/10.1007/s10546-022-00779-6
+```
 
 ## Installation
 
